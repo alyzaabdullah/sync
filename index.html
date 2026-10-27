@@ -1,0 +1,1907 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SYNC</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* ---------------------------------------------------------------------------
+ * THE HAND FONT
+ * Architects Daughter is a stand-in for pencilPete, which isn't a web font.
+ * To use the real one: license it, put the .woff2 next to this file, uncomment
+ * the @font-face below, and change --hand to "pencilPete". Nothing else moves.
+ *
+ * @font-face{
+ *   font-family:"pencilPete";
+ *   src:url("pencilPete.woff2") format("woff2");
+ *   font-display:swap;
+ * }
+ * ------------------------------------------------------------------------- */
+:root{
+  --sky:#0c1120; --sky-2:#111830; --panel:#151d34; --panel-2:#1c2642;
+  --line:#26314f; --line-2:#35426a;
+  --ink:#e9edf8; --dim:#93a0c0; --dimmer:#6b779a;
+  --indicator:#8fe3d6; --target:#b6a6f2; --star:#ffd9a3;
+  --ok:#7fd6ac;
+  --hand:"Architects Daughter","Bradley Hand","Segoe Print",cursive;
+  --child:"Architects Daughter","Bradley Hand",-apple-system,cursive;
+  --ui:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden}
+body{
+  background:var(--sky); color:var(--ink); font:16px/1.5 var(--ui);
+  -webkit-text-size-adjust:100%; overscroll-behavior:none;
+  touch-action:manipulation;
+}
+.screen{
+  position:fixed; inset:0; display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  padding:24px; text-align:center;
+}
+.screen.on{display:flex}
+.screen.scroll{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+h1{font:400 clamp(38px,7.5vw,62px)/1.1 var(--hand);margin:0 0 10px;letter-spacing:.02em}
+h2{font:400 clamp(25px,4.2vw,34px)/1.2 var(--hand);margin:0 0 8px}
+h3{font:600 12px/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:0 0 12px}
+p{margin:0 0 14px;color:var(--dim);max-width:46ch;line-height:1.6}
+p.big{font:400 clamp(19px,2.9vw,23px)/1.55 var(--hand);color:var(--ink)}
+
+button{
+  font:600 16px/1 var(--ui); padding:15px 26px; border-radius:12px; cursor:pointer;
+  background:var(--panel-2); color:var(--ink); border:1px solid var(--line-2);
+  transition:transform .08s ease;
+}
+button:active{transform:scale(.97)}
+button.primary{background:var(--indicator);color:#06231f;border-color:var(--indicator);font-weight:700}
+button.ghost{background:transparent;border-color:var(--line)}
+button.big{font:400 24px/1 var(--hand);padding:19px 46px;border-radius:18px}
+button:disabled{opacity:.4}
+.rowbtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+
+/* ---------- splash ---------- */
+#splash .mark{
+  width:96px;height:96px;margin-bottom:26px;position:relative;
+}
+#splash .mark span{
+  position:absolute;border-radius:50%;background:var(--star);
+  animation:pulse 3.6s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:1;transform:scale(1.25)}}
+@media (prefers-reduced-motion:reduce){ #splash .mark span{animation:none;opacity:.8} }
+
+/* ---------- role ---------- */
+.roles{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:20px}
+.role{
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  padding:30px 34px;min-width:190px;cursor:pointer;transition:border-color .15s;
+}
+.role:hover,.role:focus-visible{border-color:var(--line-2)}
+.role .t{font:400 26px/1.15 var(--hand);margin-bottom:6px}
+.role .s{font-size:13.5px;color:var(--dimmer)}
+
+/* ---------- character select ---------- */
+.charRow{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+.charCard{
+  background:var(--panel);border:2px solid var(--line);border-radius:22px;
+  padding:18px 14px 14px;cursor:pointer;width:150px;
+  transition:border-color .18s, transform .18s;
+}
+.charCard:hover{transform:translateY(-3px)}
+.charCard.sel{border-color:var(--indicator)}
+.charCard canvas{display:block;width:104px;height:104px;margin:0 auto 6px}
+.charCard .nm{font:400 25px/1 var(--hand);color:var(--ink)}
+
+/* ---------- therapist panel ---------- */
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:22px 24px;width:100%;max-width:460px;text-align:left;margin-bottom:16px;
+}
+.field{margin-bottom:18px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:13px;color:var(--dim);margin-bottom:8px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:12px 0;font-size:15px;border-radius:9px}
+.seg button.sel{background:var(--indicator);color:#06231f;border-color:var(--indicator);font-weight:700}
+.hint{font-size:12.5px;color:var(--dimmer);line-height:1.55;margin-top:8px}
+input[type=password]{
+  width:100%;padding:14px;border-radius:10px;background:var(--sky-2);
+  border:1px solid var(--line);color:var(--ink);font:500 20px/1 var(--mono);
+  text-align:center;letter-spacing:.4em;
+}
+
+/* ---------- calibration ---------- */
+#cal .step{font:700 15px/1 var(--ui);color:var(--indicator);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+#cal .count{font:400 74px/1 var(--hand);color:var(--ink);margin:10px 0 6px}
+#cal .bar{width:220px;height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:18px}
+#cal .bar i{display:block;height:100%;background:var(--indicator);width:0%;transition:width .1s linear}
+
+/* ---------- play ---------- */
+#play{padding:0;justify-content:center}
+#stage{display:block;width:100%;height:100%}
+#pauseBtn{
+  position:fixed;top:14px;right:14px;padding:10px 14px;font-size:14px;
+  background:rgba(21,29,52,.7);border-color:var(--line);backdrop-filter:blur(6px);
+}
+#roundsLeft{
+  position:fixed;top:18px;left:18px;font:600 13px/1 var(--ui);
+  color:var(--dimmer);letter-spacing:.08em;
+}
+
+/* ---------- break ---------- */
+#brk .breathe{
+  width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,rgba(143,227,214,.28),rgba(143,227,214,0) 70%);
+  animation:breathe 8s ease-in-out infinite;margin-bottom:26px;
+}
+@keyframes breathe{0%,100%{transform:scale(.75)}50%{transform:scale(1.15)}}
+@media (prefers-reduced-motion:reduce){ #brk .breathe{animation:none;transform:scale(1)} }
+
+/* ---------- summary ---------- */
+#summaryCanvas{width:min(78vw,420px);height:min(78vw,420px);display:block;margin:8px 0 18px}
+
+/* ---------- data view ---------- */
+.data{width:100%;max-width:760px;text-align:left;padding-bottom:40px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
+@media (max-width:620px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 15px}
+.stat .v{font:500 22px/1.1 var(--mono);color:var(--indicator)}
+.stat .k{font-size:11.5px;color:var(--dimmer);margin-top:5px;letter-spacing:.04em}
+#traj{width:100%;max-width:460px;aspect-ratio:1;display:block;background:var(--sky-2);border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font:400 12.5px/1.4 var(--mono)}
+th{text-align:right;font:500 10.5px/1 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--dimmer);padding:0 8px 9px 0;border-bottom:1px solid var(--line-2)}
+th:first-child,td:first-child{text-align:left}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);text-align:right;color:var(--dim)}
+td.hit{color:var(--ok)}
+.tblwrap{max-height:300px;overflow:auto;border-radius:10px;-webkit-overflow-scrolling:touch}
+.note{font-size:12.5px;color:var(--dimmer);line-height:1.6;margin-top:14px;max-width:64ch}
+
+.warn{
+  background:#3a2418;border:1px solid #6b4526;color:#ffd9b8;
+  border-radius:12px;padding:16px 18px;max-width:460px;margin-bottom:18px;
+  font-size:14px;line-height:1.6;text-align:left;
+}
+.warn b{color:#ffb877}
+</style>
+</head>
+<body>
+
+<!-- ============ SPLASH ============ -->
+<section class="screen on" id="splash">
+  <div class="mark" id="mark"></div>
+  <h1>SYNC</h1>
+  <p class="big">Calm, rhythm-cued motor practice.</p>
+  <div class="rowbtns"><button class="primary big" id="begin">Begin</button></div>
+</section>
+
+<!-- ============ ROLE ============ -->
+<section class="screen" id="role">
+  <h2>Who's here?</h2>
+  <div class="roles">
+    <div class="role" id="roleChild" tabindex="0"><div class="t">I'm playing</div><div class="s">Start straight away</div></div>
+    <div class="role" id="roleTher" tabindex="0"><div class="t">Therapist</div><div class="s">Set up &amp; session data</div></div>
+  </div>
+</section>
+
+<!-- ============ CHARACTERS ============ -->
+<section class="screen" id="chars">
+  <h2>Who's coming with you?</h2>
+  <div class="charRow" id="charRow"></div>
+  <div class="rowbtns" style="margin-top:24px">
+    <button class="primary big" id="charGo">Let's go</button>
+  </div>
+</section>
+
+<!-- ============ PIN ============ -->
+<section class="screen" id="pin">
+  <div class="panel" style="max-width:320px">
+    <h3>Therapist access</h3>
+    <input type="password" id="pinInput" inputmode="numeric" maxlength="4" placeholder="····">
+    <div class="hint" id="pinHint">Demo PIN is <b>1234</b>.</div>
+  </div>
+  <div class="rowbtns">
+    <button class="ghost" data-goto="role">Back</button>
+    <button class="primary" id="pinGo">Enter</button>
+  </div>
+</section>
+
+<!-- ============ SETUP ============ -->
+<section class="screen scroll" id="setup" style="padding-top:36px">
+  <h2 style="margin-bottom:18px">Session setup</h2>
+  <div id="envWarn"></div>
+  <div class="panel">
+    <div class="field">
+      <label>Difficulty</label>
+      <div class="seg" id="diffSeg"></div>
+      <div class="hint" id="diffHint"></div>
+    </div>
+    <div class="field">
+      <label>Round length</label>
+      <div class="seg" id="lenSeg"></div>
+    </div>
+    <div class="field">
+      <label>Sound</label>
+      <div class="seg" id="sndSeg">
+        <button data-v="1">On</button><button data-v="0">Off</button>
+      </div>
+      <div class="hint">The beat cue and a soft chime on a hit. Nothing ever sounds for a miss.</div>
+    </div>
+  </div>
+  <div class="rowbtns">
+    <button class="ghost" data-goto="role">Back</button>
+    <button class="ghost" id="toData">Session data</button>
+    <button class="primary" id="startSetup">Set up sensor</button>
+  </div>
+  <p class="note" style="max-width:460px">You do the sensor setup, not the child — so they never meet a permission dialog.</p>
+</section>
+
+<!-- ============ CALIBRATION ============ -->
+<section class="screen" id="cal">
+  <div class="step" id="calStep">Step 1 of 2</div>
+  <h2 id="calTitle">Hold it still</h2>
+  <p class="big" id="calText">Hold the tablet the way the child will hold it.</p>
+  <div class="count" id="calCount"></div>
+  <div class="bar"><i id="calBar"></i></div>
+  <div class="rowbtns" style="margin-top:26px">
+    <button class="primary big" id="calGo">Start</button>
+    <button class="ghost" id="calSkip">Skip</button>
+  </div>
+  <p class="note" id="calResult" style="text-align:center"></p>
+</section>
+
+<!-- ============ READY ============ -->
+<section class="screen" id="ready">
+  <h2 id="readyTitle">Ready when you are</h2>
+  <p class="big">Tilt the tablet to move the light.<br>Hold it on the star for a moment.</p>
+  <div class="rowbtns"><button class="primary big" id="tapBegin">Tap to begin</button></div>
+</section>
+
+<!-- ============ PLAY ============ -->
+<section class="screen" id="play">
+  <canvas id="stage"></canvas>
+  <div id="roundsLeft"></div>
+  <button id="pauseBtn">Break</button>
+</section>
+
+<!-- ============ BREAK ============ -->
+<section class="screen" id="brk">
+  <div class="breathe"></div>
+  <h2>Take your time</h2>
+  <p class="big">Come back whenever you're ready.<br>Your place is saved.</p>
+  <div class="rowbtns"><button class="primary big" id="resume">Back to play</button></div>
+</section>
+
+<!-- ============ SUMMARY ============ -->
+<section class="screen" id="summary">
+  <h2 id="sumTitle">Nice work</h2>
+  <canvas id="summaryCanvas"></canvas>
+  <div class="rowbtns">
+    <button class="primary" id="again">Play again</button>
+    <button class="ghost" id="sumDone">Done</button>
+  </div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section class="screen scroll" id="data" style="padding-top:32px">
+  <div class="data">
+    <h2 style="margin-bottom:4px">Session data</h2>
+    <p style="margin-bottom:18px">Therapist and research only. None of this is ever shown to the child.</p>
+    <div class="stats" id="stats"></div>
+    <h3>Tilt trajectory</h3>
+    <canvas id="traj" width="760" height="760"></canvas>
+    <h3>Trials</h3>
+    <div class="tblwrap"><table id="trialTable"></table></div>
+    <p class="note" id="dataNote"></p>
+    <div class="rowbtns" style="justify-content:flex-start;margin-top:18px">
+      <button class="primary" id="expJson">Export JSON</button>
+      <button class="ghost" id="expCsv">Export CSV</button>
+      <button class="ghost" data-goto="role">Done</button>
+    </div>
+  </div>
+</section>
+
+<script>
+/* =============================================================================
+ * SYNC — tilt-core.js
+ * Pure math for turning iOS DeviceOrientation events into a stable, calibrated,
+ * screen-space cursor. No DOM, no framework. Safe to unit-test in node.
+ *
+ * Pipeline (in order):
+ *   raw beta/gamma
+ *     -> gravity projection      (gimbal-safe, continuous)
+ *     -> screen-orientation remap
+ *     -> calibration subtraction (the "zero")
+ *     -> One Euro filter         (smoothing, adaptive lag)
+ *     -> normalize by rangeDeg
+ *     -> radial dead zone (rescaled) + clamp to unit disc
+ *
+ * IMPORTANT: raw beta/gamma are logged BEFORE any of this. The filter is for
+ * what the child sees; the analysis gets the untouched signal.
+ * ========================================================================== */
+
+const DEG = Math.PI / 180;
+const RAD = 180 / Math.PI;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+/* -----------------------------------------------------------------------------
+ * 1. Gravity projection
+ *
+ * DeviceOrientation gives intrinsic Z-X'-Y'' Euler angles (alpha, beta, gamma).
+ * Naively using gamma as "left/right tilt" breaks: gamma is only defined on
+ * [-90, 90] and flips sign discontinuously when the device passes vertical, and
+ * beta/gamma become coupled as you pitch. Both show up as a cursor that jumps
+ * or gets twitchy at steep angles.
+ *
+ * Instead: build the rotation R = Rz(a)·Rx(b)·Ry(g) and express the earth's
+ * "down" vector (0,0,-1) in the device frame. That gives
+ *     down_device = ( cos(b)sin(g),  -sin(b),  -cos(b)cos(g) )
+ * which is smooth everywhere. alpha (compass heading) drops out entirely, so
+ * the child can face any direction and the game plays the same. That is the
+ * single most important property here.
+ *
+ * Returned in SCREEN convention: +x = right, +y = down (matches CSS).
+ * -------------------------------------------------------------------------- */
+
+/** Full 3D gravity ("down") direction in the device frame. Always unit length:
+ *  cos^2(b)(sin^2 g + cos^2 g) + sin^2(b) = 1. */
+function gravityVector(beta, gamma) {
+  const b = beta * DEG, g = gamma * DEG;
+  return {
+    x: Math.cos(b) * Math.sin(g),
+    y: -Math.sin(b),
+    z: -Math.cos(b) * Math.cos(g),
+  };
+}
+
+const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+const cross3 = (a, b) => ({
+  x: a.y * b.z - a.z * b.y,
+  y: a.z * b.x - a.x * b.z,
+  z: a.x * b.y - a.y * b.x,
+});
+function norm3(v) {
+  const n = Math.hypot(v.x, v.y, v.z) || 1;
+  return { x: v.x / n, y: v.y / n, z: v.z / n };
+}
+
+/* -----------------------------------------------------------------------------
+ * 1b. The tangent basis — measuring tilt relative to the RESTING POSE.
+ *
+ * WHY THIS REPLACED THE PREVIOUS APPROACH. The obvious way to get two numbers
+ * out of the gravity vector is asin(g.x) and asin(g.y): two tilt angles measured
+ * from FLAT. That works while the device is held roughly flat, and falls apart
+ * as soon as it isn't, because d(asin x)/dx = 1/sqrt(1-x^2) blows up as |x| -> 1.
+ *
+ * Measured on a real iPad held near-vertical (gravity almost entirely along one
+ * device axis, g.x = -0.98): the x channel had a gain of 5.34x and the y channel
+ * 1.02x. A 5.3:1 anisotropy. The same physical wobble read five times larger
+ * horizontally than vertically, so the indicator tracked a stretched, skewed
+ * version of the hand's motion, and sensor noise came out as ~7.7 deg of visible
+ * jitter. No rotation fixes that: rotating a stretched signal just gives you a
+ * stretched signal pointing somewhere else.
+ *
+ * The fix is to stop measuring from flat. At calibration, freeze the resting
+ * gravity vector g0 and build an orthonormal basis (e1, e2) in the plane
+ * PERPENDICULAR to it. Tilt is then measured as the component of gravity along
+ * each basis vector. At rest both components are 0, which is where asin is
+ * best-conditioned (gain exactly 1.0), and the two axes are orthonormal by
+ * construction, so they have equal gain at any holding angle.
+ *
+ * Consequences worth knowing:
+ *   - Isotropic and linear near the resting pose, whatever that pose is. A child
+ *     can hold the tablet upright, flat, or propped on a stand and the control
+ *     feels identical. That matters clinically: seated vs standing vs supported
+ *     postures are a configuration option, not something that should silently
+ *     change the gain of the input.
+ *   - The basis is frozen at calibration, so it never jumps mid-round.
+ *   - e1 has no particular relationship to "screen right" — it comes from
+ *     whichever device axis was least aligned with gravity. That leftover
+ *     rotation is exactly what the gesture calibration measures.
+ * -------------------------------------------------------------------------- */
+function tangentBasis(g0) {
+  g0 = norm3(g0);
+  // Seed from whichever device axis is least parallel to gravity: subtracting
+  // out a nearly-parallel seed would leave a tiny, noise-dominated vector.
+  const axes = [{ x:1,y:0,z:0 }, { x:0,y:1,z:0 }, { x:0,y:0,z:1 }];
+  let seed = axes[0], best = Infinity;
+  for (const a of axes) {
+    const d = Math.abs(dot3(a, g0));
+    if (d < best) { best = d; seed = a; }
+  }
+  const d = dot3(seed, g0);
+  const e1 = norm3({ x: seed.x - d*g0.x, y: seed.y - d*g0.y, z: seed.z - d*g0.z });
+  // cross(g0, e1) fixes the handedness, so (e1, e2) is a rotation of the screen
+  // axes and never a reflection — which matters, because the gesture
+  // calibration can undo a rotation but not a mirror.
+  const e2 = cross3(g0, e1);
+  return { g0, e1, e2 };
+}
+
+/** Magnitude-weighted mean direction of a gesture, in the tangent plane.
+ *  Averaging the excursion beats taking one peak sample: a single frame can sit
+ *  on a noise spike, and a child's "tilt right" is a smear, not a point. */
+function meanDirection(samples, minMagnitudeDeg = 4) {
+  let maxMag = 0;
+  for (const s of samples) maxMag = Math.max(maxMag, Math.hypot(s.ax, s.ay));
+  if (maxMag < minMagnitudeDeg) {
+    return { ok: false, reason: 'gesture-too-small', magnitude: maxMag };
+  }
+  // Only the committed part of the gesture; the approach and the return drift
+  // through every direction and would drag the mean toward zero.
+  const thresh = maxMag * 0.5;
+  let sx = 0, sy = 0, n = 0;
+  for (const s of samples) {
+    if (Math.hypot(s.ax, s.ay) >= thresh) { sx += s.ax; sy += s.ay; n++; }
+  }
+  return { ok: true, ax: sx / n, ay: sy / n, magnitude: maxMag, n };
+}
+
+function gravityToScreen(beta, gamma, screenAngleDeg) {
+  const b = beta * DEG;
+  const g = gamma * DEG;
+
+  // Device-frame down vector, screen convention (y flipped to screen-down).
+  const gx = Math.cos(b) * Math.sin(g); // + = right edge lower
+  const gy = Math.sin(b);               // + = bottom edge lower
+
+  // Rotate device axes into screen axes when the iPad is held in landscape.
+  const th = (screenAngleDeg || 0) * DEG;
+  const c = Math.cos(th);
+  const s = Math.sin(th);
+  const sx = gx * c + gy * s;
+  const sy = -gx * s + gy * c;
+
+  // asin -> the actual tilt angle about each screen axis, in degrees.
+  // Linear in physical tilt, so "range = 25 deg" means literally 25 degrees.
+  return {
+    gx, gy, sx, sy,
+    ax: Math.asin(clamp(sx, -1, 1)) * RAD,
+    ay: Math.asin(clamp(sy, -1, 1)) * RAD,
+  };
+}
+
+/* -----------------------------------------------------------------------------
+ * 2. One Euro filter  (Casiez, Roussel & Vogel, CHI 2012)
+ *
+ * A plain moving average / EMA forces a trade: smooth at rest but laggy in
+ * motion, or responsive but jittery. One Euro adapts its cutoff to speed —
+ * heavy smoothing when nearly still (kills sensor noise and tremor), light
+ * smoothing when moving fast (keeps the cursor feeling attached to the hands).
+ *
+ * This matters for this population specifically: a laggy cursor destroys the
+ * beat-synchronization the whole design rests on, and a jittery one reads as
+ * failure the child didn't cause. It is also a standard, citable HCI filter,
+ * which is worth more in a methods section than a hand-rolled average.
+ *
+ * Tuning: minCutoff sets the floor (lower = smoother at rest, more lag),
+ * beta sets how fast it opens up (higher = less lag when moving).
+ *
+ * Measured on simulated +-0.3 deg sensor noise at 60 Hz (see test-tilt-core.js
+ * and the sweep in the notes). Across minCutoff 0.6-1.6 and beta 0.005-0.08 the
+ * residual jitter at rest only moves between 0.032 and 0.052 deg -- on a 25 deg
+ * range that is 0.13% to 0.21% of the play area, i.e. sub-pixel either way.
+ * Over the same grid, time to reach 90% of a step moves from 283 ms to 67 ms.
+ *
+ * So the jitter/latency trade is very lopsided here: smoothing harder buys
+ * nothing you can see and costs latency you can feel. For a task where the
+ * child is trying to arrive on a beat, latency is the expensive quantity, so
+ * the defaults sit at the responsive end. Retune on-device with real hands --
+ * these numbers are a starting point, not a measurement of a real child.
+ * -------------------------------------------------------------------------- */
+function alphaFor(cutoffHz, dt) {
+  const tau = 1 / (2 * Math.PI * cutoffHz);
+  return 1 / (1 + tau / dt);
+}
+
+class OneEuro {
+  constructor(minCutoff = 1.0, beta = 0.02, dCutoff = 1.0) {
+    this.minCutoff = minCutoff;
+    this.beta = beta;
+    this.dCutoff = dCutoff;
+    this.reset();
+  }
+  reset() {
+    this.xHat = null;
+    this.dxHat = 0;
+    this.tPrev = null;
+  }
+  /** @param x value  @param t time in SECONDS */
+  filter(x, t) {
+    if (this.xHat === null) {
+      this.xHat = x;
+      this.tPrev = t;
+      return x;
+    }
+    let dt = t - this.tPrev;
+    if (!(dt > 0)) dt = 1 / 60;   // duplicate/instant timestamps
+    if (dt > 0.25) dt = 0.25;     // backgrounded tab, don't let it explode
+    this.tPrev = t;
+
+    const dxRaw = (x - this.xHat) / dt;
+    const aD = alphaFor(this.dCutoff, dt);
+    this.dxHat = aD * dxRaw + (1 - aD) * this.dxHat;
+
+    const cutoff = this.minCutoff + this.beta * Math.abs(this.dxHat);
+    const a = alphaFor(cutoff, dt);
+    this.xHat = a * x + (1 - a) * this.xHat;
+    return this.xHat;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * 3. Dead zone + clamp
+ *
+ * RADIAL, not per-axis: a square dead zone lets pure-diagonal drift through and
+ * makes the neutral region feel lopsided. And RESCALED: once you leave the dead
+ * zone the output resumes from 0, not from `dz`, so the cursor eases out of
+ * center instead of snapping. That snap is exactly the kind of unpredictable
+ * jump the sensory design is trying to avoid.
+ *
+ * Output is clamped to the unit disc, so the indicator can never leave the play
+ * area — no off-screen "lost the ball" state, which would read as failure.
+ * -------------------------------------------------------------------------- */
+function deadzoneClamp(nx, ny, dz) {
+  const r = Math.hypot(nx, ny);
+  if (r <= dz) return { x: 0, y: 0, r: 0, active: false };
+  const k = ((r - dz) / (1 - dz)) / r;
+  let x = nx * k;
+  let y = ny * k;
+  const r2 = Math.hypot(x, y);
+  if (r2 > 1) { x /= r2; y /= r2; }
+  return { x, y, r: Math.min(r2, 1), active: true };
+}
+
+/* -----------------------------------------------------------------------------
+ * 4. The whole chain, as one reusable object.
+ * -------------------------------------------------------------------------- */
+const DEFAULTS = {
+  rangeDeg: 25,      // tilt angle that maps to full deflection
+  deadZone: 0.06,    // fraction of range
+  minCutoff: 1.0,    // Hz; smoothing floor when nearly still
+  filterBeta: 0.06,  // responsiveness; see the tuning note above
+  axisOffsetDeg: 0,  // learned rotation; see directionOffsetFrom() below
+
+  /* Which way the indicator follows the tablet.
+   *
+   *   'downhill' — tip a side DOWN and the indicator moves to that side, the
+   *                way a marble rolls in a tray. This is the default.
+   *   'uphill'   — LIFT a side and the indicator moves to that side.
+   *
+   * This must be an explicit setting, not a by-product of how someone happened
+   * to perform the calibration gesture. The gesture measures a DIRECTION; on
+   * its own it cannot tell "lower the right edge" from "lift the right edge",
+   * so an ambiguous instruction silently produces either polarity. Two children
+   * could then be recorded under identical settings with mirror-image
+   * trajectories — endpoint error and path efficiency would still compute, and
+   * would still be wrong to compare.
+   *
+   * 'downhill' is the default on stimulus-response compatibility grounds
+   * (Fitts & Seeger 1953): a mapping that matches the learner's existing model
+   * of the world costs less to execute and produces fewer errors. Every tilt
+   * toy and tilt game a child has met uses the marble convention. An inverted
+   * mapping is a visuomotor rotation the child has to learn on top of the motor
+   * task, which loads exactly the planning capacity the training is meant to
+   * exercise. If a therapist wants that extra transformation as a deliberate
+   * challenge, it should be a recorded choice — hence this flag rather than an
+   * accident.
+   */
+  polarity: 'downhill',
+  invertX: false,
+  invertY: false,
+};
+
+/* -----------------------------------------------------------------------------
+ * 4b. Learning the axis rotation from a gesture, instead of trusting the OS.
+ *
+ * WHY THIS EXISTS. The obvious way to handle landscape is to read
+ * screen.orientation.angle and rotate by it. That is what this code used to do,
+ * and it is not reliable on iPad: some iPads treat landscape as their NATURAL
+ * orientation and report angle 0 while physically in landscape; older iPadOS
+ * doesn't implement screen.orientation at all; window.orientation is deprecated
+ * and inconsistent. When the reported angle is wrong you get a 90 deg rotation
+ * of the whole control scheme -- tilt right, the indicator goes up -- and no
+ * amount of inverting axes fixes it, because inversion can't express a rotation.
+ *
+ * So: measure it instead. Ask for ONE gesture ("tilt the tablet to the right"),
+ * see which way the gravity vector actually moved, and rotate so that direction
+ * becomes screen-right. A single vector fully determines a 2D rotation, so one
+ * gesture pins down all four orientations AND any inversion at once.
+ *
+ * This is more robust than reading the API, and it also fits the clinical
+ * workflow: the therapist already runs a setup calibration, and "tilt it to the
+ * right" is a reasonable thing to ask a child to do. It measures the frame the
+ * child is actually working in rather than the one the OS claims.
+ *
+ * Snapping to 90 deg is OFF by default. It was on when tilt was measured from
+ * flat, where the required correction really was a multiple of 90. With the
+ * tangent basis it is not: e1 comes from whichever device axis was least
+ * aligned with gravity, so the leftover rotation is an arbitrary angle and
+ * snapping it would inject up to 45 deg of error. Perpendicularity does not
+ * depend on this being exact — the basis guarantees that — so a few degrees of
+ * gesture sloppiness costs a few degrees of rotation and nothing else.
+ * -------------------------------------------------------------------------- */
+function directionOffsetFrom(dx, dy, { snap = false, minMagnitudeDeg = 4 } = {}) {
+  const mag = Math.hypot(dx, dy);
+  if (mag < minMagnitudeDeg) {
+    // The gesture was too small to determine a direction. Refusing here is
+    // important: a near-zero vector has an essentially random angle, and
+    // silently accepting it would lock in a wrong rotation that looks like
+    // a hardware fault later.
+    return { ok: false, reason: 'gesture-too-small', magnitude: mag };
+  }
+  const measured = Math.atan2(dy, dx) * RAD;   // where "right" currently points
+  let offset = -measured;                      // rotate that back onto +x
+  if (snap) offset = Math.round(offset / 90) * 90;
+  offset = ((offset % 360) + 360) % 360;
+  return { ok: true, offsetDeg: offset, measuredDeg: measured, magnitude: mag };
+}
+
+function rotate2(x, y, deg) {
+  const r = deg * DEG, c = Math.cos(r), s = Math.sin(r);
+  return { x: x * c - y * s, y: x * s + y * c };
+}
+
+class TiltMapper {
+  constructor(opts = {}) {
+    this.cfg = { ...DEFAULTS, ...opts };
+    // Default reference = flat, screen up. Behaves like the old flat-referenced
+    // mapping until calibrate() replaces it with the child's actual pose.
+    this.setZeroVector({ x: 0, y: 0, z: -1 }, 0);
+    this.fx = new OneEuro(this.cfg.minCutoff, this.cfg.filterBeta);
+    this.fy = new OneEuro(this.cfg.minCutoff, this.cfg.filterBeta);
+    this.last = null;
+  }
+
+  set(opts) {
+    Object.assign(this.cfg, opts);
+    this.fx.minCutoff = this.fy.minCutoff = this.cfg.minCutoff;
+    this.fx.beta = this.fy.beta = this.cfg.filterBeta;
+  }
+
+  /** Freeze the resting pose as centre. Pass the AVERAGED 3D gravity vector
+   *  (average the vectors, then normalise — averaging angles is wrong near the
+   *  wrap points) and the screen angle at that moment. */
+  setZeroVector(g0, screenAngle = 0) {
+    const basis = tangentBasis(g0);
+    this.zero = basis.g0;
+    this.e1 = basis.e1;
+    this.e2 = basis.e2;
+    this.screenAngleRef = screenAngle || 0;
+    if (this.fx) { this.fx.reset(); this.fy.reset(); }
+  }
+
+  /** Convenience: freeze the pose straight from a raw event. */
+  setZeroFromEuler(beta, gamma, screenAngle = 0) {
+    this.setZeroVector(gravityVector(beta, gamma), screenAngle);
+  }
+
+  /** Apply a learned rotation. `result` comes from directionOffsetFrom(). */
+  setAxisOffset(deg) { this.cfg.axisOffsetDeg = ((deg % 360) + 360) % 360; }
+
+  /**
+   * @param beta,gamma  raw from the event
+   * @param screenAngle screen.orientation.angle (used only as a DELTA from the
+   *                    angle at calibration, so a wrong absolute value is
+   *                    harmless as long as it's consistently wrong)
+   * @param tSec        timestamp in SECONDS (performance.now()/1000)
+   */
+  update(beta, gamma, screenAngle, tSec) {
+    const g = gravityVector(beta, gamma);
+
+    // Polar form, not per-component asin.
+    //
+    // MAGNITUDE is the true angle between the current gravity direction and the
+    // resting one — a single number that means "how far the tablet is tilted
+    // from where the child started", in real degrees.
+    // DIRECTION is the bearing of that tilt within the tangent plane.
+    //
+    // Taking asin of each component separately instead leaves a small residual
+    // anisotropy (~2.5% at 30 deg, worst on the diagonals) because hypot of two
+    // asins isn't a polar radius. Polar form is exactly isotropic by
+    // construction, so a 20 deg tilt reads as 20 deg in every direction — which
+    // is the property that makes "range = 25 deg" a statement about the child's
+    // wrist rather than about which way they happened to move.
+    const magDeg = Math.acos(clamp(dot3(g, this.zero), -1, 1)) * RAD;
+    const dir = Math.atan2(dot3(g, this.e2), dot3(g, this.e1));
+    const cx = magDeg * Math.cos(dir);
+    const cy = magDeg * Math.sin(dir);
+
+    // Learned offset, plus any change in reported screen angle SINCE
+    // calibration. Using the delta rather than the absolute value means a
+    // device that reports the wrong angle still works (the learned offset
+    // absorbs the constant error), while a device that reports correctly still
+    // tracks live rotation mid-session.
+    const phi = this.cfg.axisOffsetDeg
+              + (this.cfg.polarity === 'uphill' ? 180 : 0)
+              - ((screenAngle || 0) - this.screenAngleRef);
+    const rot = rotate2(cx, cy, phi);
+
+    const sx = this.fx.filter(rot.x, tSec);
+    const sy = this.fy.filter(rot.y, tSec);
+
+    let nx = sx / this.cfg.rangeDeg;
+    let ny = sy / this.cfg.rangeDeg;
+    if (this.cfg.invertX) nx = -nx;
+    if (this.cfg.invertY) ny = -ny;
+
+    const out = deadzoneClamp(nx, ny, this.cfg.deadZone);
+
+    this.last = {
+      t: tSec,
+      raw: { beta, gamma },
+      gravity: g,                             // 3D unit down-vector, device frame
+      // Angle of the whole tilt away from the resting pose. Useful as a
+      // range-of-motion measure in its own right.
+      tiltFromRestDeg: magDeg,
+      angle: { ax: cx, ay: cy },              // tangent-plane, relative to rest
+      cal: { ax: cx, ay: cy },                // tangent-plane, pre-rotation
+                                              // ^ what meanDirection() reads
+      rotated: { ax: rot.x, ay: rot.y },      // after the axis rotation, pre-filter
+      smooth: { ax: sx, ay: sy },
+      pos: { x: out.x, y: out.y },            // final, -1..1, unit disc
+      r: out.r,
+    };
+    return this.last;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * 5. Resampling to a uniform grid.
+ *
+ * deviceorientation fires at a nominally-60Hz but genuinely irregular rate.
+ * Differentiating an unevenly-sampled signal (which is what jerk / smoothness
+ * metrics require) inflates noise badly. So: log at the native event rate with
+ * true timestamps, and resample to a uniform grid at analysis time. Never
+ * pretend the samples were uniform when they weren't.
+ * -------------------------------------------------------------------------- */
+function resampleUniform(samples, tIndex, valueIndices, hz) {
+  if (samples.length < 2) return [];
+  const t0 = samples[0][tIndex];
+  const t1 = samples[samples.length - 1][tIndex];
+  const step = 1000 / hz;
+  const out = [];
+  let j = 0;
+  for (let t = t0; t <= t1; t += step) {
+    while (j < samples.length - 2 && samples[j + 1][tIndex] < t) j++;
+    const a = samples[j];
+    const b = samples[j + 1];
+    const span = b[tIndex] - a[tIndex];
+    const u = span > 0 ? (t - a[tIndex]) / span : 0;
+    const row = [Math.round((t - t0) * 1000) / 1000];
+    for (const vi of valueIndices) row.push(a[vi] + (b[vi] - a[vi]) * u);
+    out.push(row);
+  }
+  return out;
+}
+
+/* ===========================================================================
+ * SYNC — demo build
+ * Child-facing game + therapist setup + the logged data behind it.
+ * Tilt maths is tilt-core (above), unchanged.
+ * ======================================================================== */
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+const hexA = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+};
+
+/* ---------- difficulty ----------------------------------------------------
+ * Difficulty is FIXED for the round (Alyza's decision — the therapist raises
+ * it for the next round rather than the app adapting mid-play). It sets two
+ * things: how big the target is, and how fast the beat runs.
+ * ------------------------------------------------------------------------ */
+const DIFF = [
+  { d:1, tol:0.34, bpm:52, label:'Largest target, slowest beat' },
+  { d:2, tol:0.29, bpm:60, label:'Large target, slow beat' },
+  { d:3, tol:0.24, bpm:68, label:'Medium target and tempo' },
+  { d:4, tol:0.19, bpm:78, label:'Small target, quick beat' },
+  { d:5, tol:0.15, bpm:88, label:'Smallest target, fastest beat' },
+];
+const LENGTHS = [
+  { s:60,  label:'1 min' },
+  { s:120, label:'2 min' },
+  { s:180, label:'3 min' },
+];
+/* Target distance from centre.
+ *
+ * This was a single fixed value, which made every constellation a regular
+ * polygon — pretty, but it also pinned D in Fitts' law, so movement time could
+ * only ever be regressed against target width. Varying it does three things at
+ * once: the ring becomes organic rather than mechanical, the child gets short
+ * and long reaches instead of one rehearsed distance (variable practice), and
+ * the index of difficulty log2(2D/W) finally spans a real range.
+ *
+ * Kept narrow on purpose — the constellation should still read as a ring.
+ * Set MIN = MAX to go back to a perfect circle. */
+const TARGET_RADIUS = 0.62;
+/* Reach distance is FIXED, which is what keeps every reward a true circle.
+ * Setting VARY_DISTANCE = true spreads targets between 0.50 and 0.76, which
+ * makes the shapes organic rather than round — and is the only way to vary D
+ * in the Fitts index log2(2D/W). Leave it off for play; turn it on for the
+ * validation study, where a range of reach distances is the whole point. */
+const VARY_DISTANCE = false;
+const RADIUS_SPREAD = [0.50, 0.76];
+const BEATS_PER_TRIAL = 2;    // one target per two beats
+
+/* How long the indicator must stay inside the target for it to count.
+ * Replaces tap-to-commit: the child is already tilting, and asking for a second
+ * action with the other hand taxes exactly the motor planning the task is
+ * meant to be measuring. Long enough not to trigger on a fly-through, short
+ * enough not to feel like holding your breath. */
+const DWELL_MS = 350;
+
+const cfg = { diff:2, lengthS:120, sound:1 };
+
+/* ---------- characters ----------------------------------------------------
+ * Three, drawn in code so there are no assets to load and they scale cleanly.
+ * The character IS the thing the child steers, not a decoration beside it —
+ * guiding a friend to a star reads as a warmer task than moving a dot, and it
+ * gives the errorless design somewhere to put the reinforcement.
+ *
+ * Critically, none of them has a sad face. On a miss the character simply does
+ * not react. There is no unhappy state anywhere in this file.
+ * ------------------------------------------------------------------------ */
+const CHARACTERS = [
+  // Each character builds something of its own kind out of the child's hits.
+  // Luma is a star, so she makes a constellation. Bo is a cloud, so he makes a
+  // rainbow. Pip is a seed, so it grows. The reward isn't a score wearing a
+  // costume — it's the thing that character would actually leave behind.
+  { id:'luma', name:'Luma', colour:'#ffd9a3', dark:'#8a6a35', shape:'star',
+    reward:'constellation', done:'Look what you made' },
+  { id:'bo',   name:'Bo',   colour:'#8fe3d6', dark:'#2f6b63', shape:'cloud',
+    reward:'rainbow',       done:'Look what you made' },
+  { id:'pip',  name:'Pip',  colour:'#b6a6f2', dark:'#4c3f80', shape:'drop',
+    reward:'sprout',        done:'Look what you grew' },
+];
+
+/* Soft, desaturated rainbow. A saturated spectrum would be the most
+ * overstimulating thing in the app, which is the opposite of the point. */
+const RAINBOW = ['#e8a3a3','#f0c391','#f0e3a6','#a9d8b4','#a3c9e8','#c2b2ec'];
+
+/* ---------------------------------------------------------------------------
+ * The reward each character builds. Drawn quietly behind play as it grows,
+ * and fully on the summary. Nothing here is ever a number.
+ * ------------------------------------------------------------------------ */
+/* One small mark per hit, in the character's own vocabulary. These are what
+ * the child watches accumulate during play; the finished picture is held back
+ * for the end so the summary is a reveal rather than a recap. */
+function drawHitMark(g, x, y, r, ch, a, pop){
+  const s = r * (0.55 + 0.45*pop);           // small pop as it lands
+  if (ch.reward === 'rainbow'){
+    // a tiny upright rainbow, four bands so it still reads at this size
+    const bands = [RAINBOW[0], RAINBOW[2], RAINBOW[3], RAINBOW[5]];
+    g.lineCap = 'butt';
+    for (let i=0;i<bands.length;i++){
+      g.strokeStyle = hexA(bands[i], a);
+      g.lineWidth = s*0.30;
+      g.beginPath();
+      g.arc(x, y + s*0.55, s*(1.05 - i*0.30), Math.PI, TAU);
+      g.stroke();
+    }
+    g.lineCap = 'round';
+  } else if (ch.reward === 'sprout'){
+    // a little sprout: stem and two leaves
+    g.strokeStyle = hexA('#8fc9a0', a);
+    g.lineWidth = s*0.17; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x, y + s*0.85); g.lineTo(x, y - s*0.45); g.stroke();
+    g.fillStyle = hexA('#8fc9a0', a);
+    [-1, 1].forEach(side => {
+      g.save(); g.translate(x, y - s*(side>0 ? 0.28 : 0.02));
+      g.rotate(side * 0.75);
+      g.beginPath(); g.ellipse(side*s*0.44, 0, s*0.44, s*0.20, 0, 0, TAU); g.fill();
+      g.restore();
+    });
+  } else {
+    g.fillStyle = hexA('#e2d1b2', a);
+    g.beginPath(); g.arc(x, y, s*0.34, 0, TAU); g.fill();
+  }
+}
+
+/* @param opts.final  true only on the summary, where the finished shape appears */
+function drawReward(g, cx, cy, R, ch, stars, now, opts){
+  opts = opts || {};
+  const a = opts.alpha == null ? 1 : opts.alpha;
+  const glow = opts.glow || 0;                 // brief lift at a milestone
+  const n = stars.length;
+  if (!n) return;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+
+  // Mid-session, the rainbow and the wreath are still just the pieces the child
+  // has collected. Holding the finished shape back means the summary shows them
+  // something they haven't already been looking at for two minutes.
+  if (!opts.final && ch.reward !== 'constellation'){
+    for (const st of stars){
+      const pop = Math.min(1, (now - st.t)/320);
+      drawHitMark(g, cx + st.x*R, cy + st.y*R, R*0.052, ch,
+                  a*(0.85 + glow*0.15), pop);
+    }
+    return;
+  }
+
+  if (ch.reward === 'constellation'){
+    // Join the stars in ANGULAR order, not the order they were hit. Hit order
+    // is a scribble across the middle; angular order is the ring the child can
+    // actually see themselves building. The temporal sequence isn't lost — it's
+    // in the trial log, which is where it's useful.
+    const ring = stars.map(st => ({ x:st.x, y:st.y, t:st.t, a:Math.atan2(st.y, st.x) }))
+                      .sort((p,q) => p.a - q.a);
+    // Close the loop only once there's no big hole left, so "closed" means
+    // they really did go all the way round rather than just scored a lot.
+    let widestGap = 0;
+    if (ring.length > 2){
+      for (let i=0;i<ring.length;i++){
+        const nxt = ring[(i+1) % ring.length];
+        let d = nxt.a - ring[i].a;
+        if (d < 0) d += TAU;
+        widestGap = Math.max(widestGap, d);
+      }
+    } else widestGap = TAU;
+    const closed = ring.length >= 5 && widestGap < Math.PI*0.55;
+
+    if (closed){
+      // a soft halo the moment the ring completes — the only reward in the app
+      // that needs the whole circle rather than one more hit
+      const mean = ring.reduce((s2,p)=>s2+Math.hypot(p.x,p.y),0)/ring.length;
+      const hal = g.createRadialGradient(cx,cy,R*mean*0.55,cx,cy,R*mean*1.35);
+      hal.addColorStop(0,'rgba(255,217,163,0)');
+      hal.addColorStop(0.55, hexA('#ffd9a3', a*(0.09 + glow*0.12)));
+      hal.addColorStop(1,'rgba(255,217,163,0)');
+      g.fillStyle = hal;
+      g.beginPath(); g.arc(cx,cy,R*mean*1.35,0,TAU); g.fill();
+    }
+
+    g.strokeStyle = hexA('#ffd9a3', a*((closed ? 0.42 : 0.30) + glow*0.4));
+    g.lineWidth = Math.max(1, R*(closed ? 0.006 : 0.005));
+    g.beginPath();
+    ring.forEach((st,i) => { const x=cx+st.x*R, y=cy+st.y*R; i===0?g.moveTo(x,y):g.lineTo(x,y); });
+    if (closed) g.closePath();
+    g.stroke();
+    for (const s of stars){
+      const age = Math.min(1,(now - s.t)/700);
+      g.fillStyle = hexA('#e2d1b2', a*(0.50 + 0.35*(1-age) + glow*0.3));
+      g.beginPath(); g.arc(cx+s.x*R, cy+s.y*R, R*0.017, 0, TAU); g.fill();
+    }
+
+  } else if (ch.reward === 'rainbow'){
+    // A rainbow all the way round — a glory, the full circle you only see from
+    // above the weather. Same shape language as the constellation: it sweeps
+    // round as hits accumulate and closes when the circle is whole.
+    const p = Math.min(1, n/10);
+    const a0 = -Math.PI/2;
+    const a1 = a0 + TAU*p;
+    for (let i=0;i<RAINBOW.length;i++){
+      g.strokeStyle = hexA(RAINBOW[i], a*(0.82 + glow*0.18));
+      g.lineWidth = R*0.042;
+      g.beginPath();
+      g.arc(cx, cy, R*(0.88 - i*0.044), a0, a1);
+      g.stroke();
+    }
+    if (p >= 1){
+      // the halo that only a closed ring earns
+      const hal = g.createRadialGradient(cx,cy,R*0.42,cx,cy,R*1.06);
+      hal.addColorStop(0,'rgba(226,238,252,0)');
+      hal.addColorStop(0.62, hexA('#e4eefc', a*(0.09 + glow*0.12)));
+      hal.addColorStop(1,'rgba(226,238,252,0)');
+      g.fillStyle = hal;
+      g.beginPath(); g.arc(cx,cy,R*1.06,0,TAU); g.fill();
+    }
+    // a couple of small clouds drifting on the ring
+    const puff = (x,y,r) => { g.moveTo(x+r,y); g.arc(x,y,r,0,TAU); };
+    const cloudAt = (ang) => {
+      const rr = R*0.98, x = cx+Math.cos(ang)*rr, y = cy+Math.sin(ang)*rr;
+      g.fillStyle = hexA('#e4eefc', a*0.62);
+      g.beginPath();
+      puff(x-R*0.052, y+R*0.010, R*0.040);
+      puff(x,          y-R*0.014, R*0.056);
+      puff(x+R*0.052, y+R*0.014, R*0.038);
+      g.fill();
+    };
+    cloudAt(a0);
+    if (p >= 1) cloudAt(a0 + Math.PI);
+
+  } else {
+    // Pip is a seed, so it grows — but round, as a wreath, so it belongs to the
+    // same family of shapes as the other two.
+    const p = Math.min(1, n/12);
+    const a0 = Math.PI/2;                 // start at the bottom and climb round
+    const a1 = a0 + TAU*p;
+    const rr = R*0.70;
+
+    g.strokeStyle = hexA('#8fc9a0', a*(0.80 + glow*0.20));
+    g.lineWidth = R*0.020;
+    g.beginPath(); g.arc(cx, cy, rr, a0, a1); g.stroke();
+
+    const leaves = Math.min(n, 12);
+    for (let i=0;i<leaves;i++){
+      const t = (i + 0.5)/12;
+      const ang = a0 + TAU*Math.min(t, p);
+      const x = cx + Math.cos(ang)*rr, y = cy + Math.sin(ang)*rr;
+      const side = (i%2===0) ? 1 : -1;
+      g.fillStyle = hexA('#8fc9a0', a*0.85);
+      g.save();
+      g.translate(x, y);
+      g.rotate(ang + Math.PI/2 + side*0.55);   // tangent, then splayed out
+      g.beginPath(); g.ellipse(0, side*R*0.062, R*0.030, R*0.070, 0, 0, TAU); g.fill();
+      g.restore();
+    }
+
+    // a flower opens at every fourth leaf, so the wreath fills in as it grows
+    const flowers = Math.floor(leaves/4);
+    for (let f=0; f<flowers; f++){
+      const ang = a0 + TAU*Math.min(((f*4)+2.5)/12, p);
+      const fx = cx + Math.cos(ang)*rr, fy = cy + Math.sin(ang)*rr;
+      for (let i=0;i<6;i++){
+        const pa = i*(TAU/6);
+        g.fillStyle = hexA(ch.colour, a*(0.88 + glow*0.12));
+        g.save(); g.translate(fx, fy); g.rotate(pa);
+        g.beginPath(); g.ellipse(R*0.040, 0, R*0.040, R*0.022, 0, 0, TAU); g.fill();
+        g.restore();
+      }
+      g.fillStyle = hexA('#f0e3a6', a);
+      g.beginPath(); g.arc(fx, fy, R*0.024, 0, TAU); g.fill();
+    }
+
+    if (p >= 1){
+      const hal = g.createRadialGradient(cx,cy,R*0.34,cx,cy,R*0.98);
+      hal.addColorStop(0,'rgba(143,201,160,0)');
+      hal.addColorStop(0.62, hexA('#8fc9a0', a*(0.08 + glow*0.12)));
+      hal.addColorStop(1,'rgba(143,201,160,0)');
+      g.fillStyle = hal;
+      g.beginPath(); g.arc(cx,cy,R*0.98,0,TAU); g.fill();
+    }
+  }
+}
+
+let chosenChar = CHARACTERS[0];
+
+function drawCharacter(g, x, y, r, ch, opts){
+  opts = opts || {};
+  const happy = opts.happy || 0;          // 0..1, brief after a hit
+  const bob   = opts.bob || 0;            // gentle idle motion
+  const s = r * (1 + happy*0.16);
+  g.save();
+  g.translate(x, y + bob);
+
+  g.fillStyle = ch.colour;
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+
+  if (ch.shape === 'star'){
+    // 5-point star, stroked in its own colour so the points read soft, not sharp
+    g.beginPath();
+    for (let i=0;i<10;i++){
+      const a = -Math.PI/2 + i*Math.PI/5;
+      const rr = (i%2===0) ? s : s*0.52;
+      const px = Math.cos(a)*rr, py = Math.sin(a)*rr;
+      i===0 ? g.moveTo(px,py) : g.lineTo(px,py);
+    }
+    g.closePath();
+    g.lineWidth = s*0.30; g.strokeStyle = ch.colour; g.stroke(); g.fill();
+  } else if (ch.shape === 'cloud'){
+    // moveTo before each arc: chained arcs join into one subpath and can
+    // self-intersect instead of unioning
+    g.beginPath();
+    g.moveTo(-s*0.48 + s*0.52, s*0.10);  g.arc(-s*0.48,  s*0.10, s*0.52, 0, TAU);
+    g.moveTo( s*0.02 + s*0.68, -s*0.18); g.arc( s*0.02, -s*0.18, s*0.68, 0, TAU);
+    g.moveTo( s*0.55 + s*0.46, s*0.12);  g.arc( s*0.55,  s*0.12, s*0.46, 0, TAU);
+    g.fill();
+    g.beginPath();
+    g.moveTo(-s*0.95, s*0.34); g.lineTo(s*0.95, s*0.34);
+    g.lineWidth = s*0.5; g.strokeStyle = ch.colour; g.stroke();
+  } else {
+    // rounded drop with a little tuft
+    g.beginPath(); g.arc(0, s*0.06, s*0.86, 0, TAU); g.fill();
+    g.beginPath();
+    g.moveTo(-s*0.20, -s*0.72);
+    g.quadraticCurveTo(0, -s*1.42, s*0.24, -s*0.66);
+    g.quadraticCurveTo(0, -s*0.86, -s*0.20, -s*0.72);
+    g.fill();
+  }
+
+  // face — sits slightly high on the cloud so it isn't lost in the bumps
+  const fy = ch.shape==='cloud' ? -s*0.16 : (ch.shape==='star' ? s*0.02 : s*0.04);
+  const ex = s*0.30, eyeR = s*0.105;
+  g.fillStyle = ch.dark; g.strokeStyle = ch.dark;
+  g.lineWidth = Math.max(1, s*0.085);
+  if (happy > 0.05){
+    // happy eyes: two upward arcs. There is no downward version of this.
+    [-ex, ex].forEach(dx => {
+      g.beginPath(); g.arc(dx, fy + eyeR*0.5, eyeR*1.15, Math.PI*1.15, Math.PI*1.85); g.stroke();
+    });
+  } else {
+    [-ex, ex].forEach(dx => { g.beginPath(); g.arc(dx, fy, eyeR, 0, TAU); g.fill(); });
+  }
+  // mouth: a small smile that gets a touch wider when happy
+  g.beginPath();
+  g.arc(0, fy + s*0.14, s*(0.20 + happy*0.09), Math.PI*0.18, Math.PI*0.82);
+  g.stroke();
+
+  g.restore();
+}
+
+/* ---------- session state ------------------------------------------------ */
+const mapper = new TiltMapper({ rangeDeg:25, deadZone:0.05 });
+const S = {
+  screen:'splash',
+  permission:'unknown',
+  receiving:false,
+  calibrated:false,
+  playing:false,
+  paused:false,
+  t0:0,
+  streak:0, bestStreak:0, lastHitAt:0,
+  trials:[], trialIdx:0,
+  current:null,          // active trial
+  stars:[],              // hit positions, for the constellation
+  blooms:[],
+  celebrate:0,
+  orientation:[],        // raw log
+  motion:[],             // accelerometer + gyroscope
+  marks:[],
+  endsAt:0,
+};
+
+/* ---------- screens ------------------------------------------------------ */
+function show(name){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === name));
+  S.screen = name;
+  if (name === 'play') sizeStage();
+  if (name === 'chars') renderChars();
+}
+document.querySelectorAll('[data-goto]').forEach(b =>
+  b.onclick = () => { stopPlay(); show(b.dataset.goto); });
+
+/* splash mark: three stars, gently pulsing out of phase */
+(function(){
+  const m = $('mark');
+  [[48,10,9],[16,58,6],[76,64,7]].forEach(([x,y,r],i) => {
+    const s = document.createElement('span');
+    s.style.cssText = `left:${x-r}px;top:${y-r}px;width:${r*2}px;height:${r*2}px;animation-delay:${i*1.2}s`;
+    m.appendChild(s);
+  });
+})();
+
+$('begin').onclick = () => { ensureAudio(); show('role'); };
+$('roleChild').onclick = () => S.calibrated ? show('chars') : show('setup');
+
+function renderChars(){
+  const row = $('charRow'); row.innerHTML='';
+  CHARACTERS.forEach(ch => {
+    const card = document.createElement('div');
+    card.className = 'charCard' + (ch.id===chosenChar.id ? ' sel':'');
+    card.tabIndex = 0;
+    const cv = document.createElement('canvas');
+    const dpr = Math.min(devicePixelRatio||1,2.5);
+    cv.width = 104*dpr; cv.height = 104*dpr;
+    const g = cv.getContext('2d');
+    drawCharacter(g, cv.width/2, cv.height/2, cv.width*0.30, ch, { happy:1 });
+    const nm = document.createElement('div');
+    nm.className='nm'; nm.textContent = ch.name;
+    card.appendChild(cv); card.appendChild(nm);
+    const pick = () => { chosenChar = ch; renderChars(); };
+    card.onclick = pick;
+    card.onkeydown = e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } };
+    row.appendChild(card);
+  });
+}
+$('charGo').onclick = () => { $('readyTitle').textContent = `Ready, ${chosenChar.name}?`; show('ready'); };
+$('roleTher').onclick  = () => show('pin');
+$('roleChild').onkeydown = e => { if(e.key==='Enter') $('roleChild').click(); };
+$('roleTher').onkeydown  = e => { if(e.key==='Enter') $('roleTher').click(); };
+
+$('pinGo').onclick = () => {
+  if ($('pinInput').value === '1234'){ $('pinInput').value=''; $('pinHint').innerHTML='Demo PIN is <b>1234</b>.'; renderSetup(); show('setup'); }
+  else { $('pinHint').textContent = 'Not that one — try again.'; }
+};
+$('pinInput').onkeydown = e => { if(e.key==='Enter') $('pinGo').click(); };
+
+/* ---------- setup UI ----------------------------------------------------- */
+function renderSetup(){
+  const seg = $('diffSeg'); seg.innerHTML='';
+  DIFF.forEach(d => {
+    const b = document.createElement('button');
+    b.textContent = d.d; b.className = d.d===cfg.diff ? 'sel':'';
+    b.onclick = () => { cfg.diff = d.d; renderSetup(); };
+    seg.appendChild(b);
+  });
+  $('diffHint').textContent = DIFF[cfg.diff-1].label + ' · ' + DIFF[cfg.diff-1].bpm + ' bpm';
+
+  const ls = $('lenSeg'); ls.innerHTML='';
+  LENGTHS.forEach(l => {
+    const b = document.createElement('button');
+    b.textContent = l.label; b.className = l.s===cfg.lengthS ? 'sel':'';
+    b.onclick = () => { cfg.lengthS = l.s; renderSetup(); };
+    ls.appendChild(b);
+  });
+  $('sndSeg').querySelectorAll('button').forEach(b => {
+    b.className = (+b.dataset.v === cfg.sound) ? 'sel':'';
+    b.onclick = () => { cfg.sound = +b.dataset.v; renderSetup(); };
+  });
+
+  // environment check — the same failure modes as the lab page
+  let framed; try { framed = window.self !== window.top; } catch(e){ framed = true; }
+  const secure = window.isSecureContext || ['localhost','127.0.0.1'].includes(location.hostname);
+  const msgs = [];
+  if (framed) msgs.push('This page is inside an <b>iframe</b>, so iOS will not deliver motion events. Open it in a real Safari tab.');
+  if (!secure) msgs.push('Not served over <b>HTTPS</b> — iOS exposes no motion sensors over plain http.');
+  $('envWarn').innerHTML = msgs.length
+    ? `<div class="warn">${msgs.join('<br><br>')}<br><br>Touch-drag still works, so the demo runs either way.</div>` : '';
+}
+
+$('toData').onclick = () => { renderData(); show('data'); };
+$('startSetup').onclick = async () => {
+  await requestMotion();
+  calStage = 0;
+  $('calResult').textContent = '';
+  renderCalStage();
+  show('cal');
+};
+
+/* ---------- motion permission -------------------------------------------- */
+let attached = false;
+function requestMotion(){
+  const DOE = window.DeviceOrientationEvent, DME = window.DeviceMotionEvent;
+  if (typeof DOE === 'undefined'){ S.permission='unsupported'; return Promise.resolve(); }
+  if (typeof DOE.requestPermission !== 'function'){ S.permission='not-required'; attach(); return Promise.resolve(); }
+  // Both prompts must be STARTED inside the tap; awaiting the first before
+  // calling the second loses user activation and the motion prompt never shows.
+  const pO = DOE.requestPermission();
+  const pM = (DME && typeof DME.requestPermission === 'function') ? DME.requestPermission() : Promise.resolve('granted');
+  return Promise.allSettled([pO,pM]).then(([o]) => {
+    S.permission = o.status==='fulfilled' ? o.value : 'denied';
+    if (S.permission === 'granted') attach();
+  });
+}
+function attach(){
+  if (attached) return; attached = true;
+  window.addEventListener('deviceorientation', onOrientation, true);
+  // Accelerometer and rate gyroscope, logged alongside orientation.
+  // Smoothness needs two or three derivatives; taking those from a 60 Hz
+  // orientation signal amplifies noise badly, whereas the gyro measures
+  // angular velocity directly. Cheap to record now, impossible to recover later.
+  window.addEventListener('devicemotion', onMotion, true);
+}
+
+function onMotion(e){
+  if (!S.playing || S.paused) return;
+  const a = e.accelerationIncludingGravity || {};
+  const r = e.rotationRate || {};
+  S.motion.push([
+    +(performance.now() - S.t0).toFixed(1),
+    a.x == null ? null : +a.x.toFixed(4),
+    a.y == null ? null : +a.y.toFixed(4),
+    a.z == null ? null : +a.z.toFixed(4),
+    r.alpha == null ? null : +r.alpha.toFixed(3),
+    r.beta  == null ? null : +r.beta.toFixed(3),
+    r.gamma == null ? null : +r.gamma.toFixed(3),
+    e.interval == null ? null : e.interval,
+    S.current ? S.current.i : -1,
+  ]);
+}
+if (typeof DeviceOrientationEvent !== 'undefined' &&
+    typeof DeviceOrientationEvent.requestPermission !== 'function'){ S.permission='not-required'; attach(); }
+
+function screenAngle(){
+  if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+  if (typeof window.orientation === 'number') return (window.orientation+360)%360;
+  return 0;
+}
+
+let calCollect = null;   // 'centre' | 'axis' | null
+let calBuf = [];
+function onOrientation(e){
+  if (e.beta === null && e.gamma === null) return;
+  S.receiving = true;
+  const tMs = performance.now();
+  const s = mapper.update(e.beta||0, e.gamma||0, screenAngle(), tMs/1000);
+
+  if (calCollect === 'centre') calBuf.push(s.gravity);
+  if (calCollect === 'axis')   calBuf.push({ ax:s.cal.ax, ay:s.cal.ay });
+
+  if (S.playing && !S.paused){
+    pos = s.pos;
+    S.orientation.push([
+      +(tMs - S.t0).toFixed(1),
+      +(e.beta||0).toFixed(3), +(e.gamma||0).toFixed(3),
+      +s.angle.ax.toFixed(3), +s.angle.ay.toFixed(3),
+      +s.pos.x.toFixed(4), +s.pos.y.toFixed(4),
+      S.current ? S.current.i : -1,
+    ]);
+    // Movement onset for reaction time. Measured from where the indicator ALREADY
+    // WAS when the target appeared, not from screen centre — the indicator stays
+    // wherever the last trial left it, so a centre-referenced threshold either
+    // fires instantly or never fires at all depending on the previous trial.
+    const c0 = S.current;
+    if (c0 && !c0.onsetAt && Math.hypot(s.pos.x - c0.startX, s.pos.y - c0.startY) > 0.10){
+      c0.onsetAt = tMs;
+    }
+  }
+}
+
+/* ---------- calibration --------------------------------------------------- */
+let calStage = 0;   // 0 = centre, 1 = axis
+function renderCalStage(){
+  if (calStage === 0){
+    $('calStep').textContent = 'Step 1 of 2';
+    $('calTitle').textContent = 'Hold it still';
+    $('calText').textContent = 'Hold the tablet the way the child will hold it, then start.';
+  } else {
+    $('calStep').textContent = 'Step 2 of 2';
+    $('calTitle').textContent = 'Tip the right edge down';
+    $('calText').textContent = 'When it says GO, tip the RIGHT edge of the tablet downward and hold it there.';
+  }
+  $('calCount').textContent = ''; $('calBar').style.width = '0%';
+  $('calGo').disabled = false; $('calGo').textContent = 'Start';
+}
+
+$('calGo').onclick = function(){
+  const btn = this; btn.disabled = true;
+  const isCentre = calStage === 0;
+  let n = 3;
+  $('calCount').textContent = n;
+  const tick = setInterval(() => {
+    n--;
+    if (n > 0){ $('calCount').textContent = n; return; }
+    clearInterval(tick);
+    $('calCount').textContent = isCentre ? 'Hold' : 'GO';
+    calBuf = []; calCollect = isCentre ? 'centre' : 'axis';
+    const dur = isCentre ? 2200 : 2400;
+    const started = performance.now();
+    const prog = setInterval(() => {
+      const p = Math.min(1,(performance.now()-started)/dur);
+      $('calBar').style.width = (p*100)+'%';
+      if (p >= 1) clearInterval(prog);
+    }, 60);
+    setTimeout(() => {
+      calCollect = null;
+      $('calCount').textContent = '';
+      finishCal(isCentre);
+    }, dur);
+  }, 800);
+};
+
+function finishCal(isCentre){
+  if (calBuf.length < 5){
+    $('calResult').innerHTML = S.receiving
+      ? 'No samples arrived — try again.'
+      : 'No motion data on this device. <b>Touch-drag will be used instead</b>, which is fine for a laptop demo.';
+    S.calibrated = true;                    // let the demo proceed on touch
+    $('calGo').disabled = false; $('calGo').textContent = 'Retry';
+    setTimeout(() => show('chars'), 1400);
+    return;
+  }
+  if (isCentre){
+    let mx=0,my=0,mz=0;
+    for (const v of calBuf){ mx+=v.x; my+=v.y; mz+=v.z; }
+    const n = Math.hypot(mx,my,mz)||1;
+    const g0 = { x:mx/n, y:my/n, z:mz/n };
+    let sv=0;
+    for (const v of calBuf){
+      const d = Math.max(-1,Math.min(1, v.x*g0.x+v.y*g0.y+v.z*g0.z));
+      const a = Math.acos(d)*180/Math.PI; sv += a*a;
+    }
+    const sd = Math.sqrt(sv/calBuf.length);
+    const fromFlat = Math.acos(Math.max(-1,Math.min(1,-g0.z)))*180/Math.PI;
+    mapper.setZeroVector(g0, screenAngle());
+    S.calZero = { g0, steadiness:+sd.toFixed(2), fromFlat:+fromFlat.toFixed(1) };
+    $('calResult').textContent =
+      `Centred on a ${fromFlat.toFixed(0)}° hold. Steadiness ${sd.toFixed(2)}°.` +
+      (sd > 2 ? ' That is a bit unsteady — worth redoing.' : '');
+    calStage = 1;
+    setTimeout(renderCalStage, 900);
+    $('calGo').disabled = false;
+  } else {
+    const mean = meanDirection(calBuf);
+    if (!mean.ok){
+      $('calResult').textContent = `That tilt was too small (${mean.magnitude.toFixed(1)}°). Tip it further and try again.`;
+      $('calGo').disabled = false; $('calGo').textContent = 'Retry';
+      return;
+    }
+    const r = directionOffsetFrom(mean.ax, mean.ay);
+    mapper.setAxisOffset(r.offsetDeg);
+    S.calAxis = { offsetDeg:+r.offsetDeg.toFixed(1), magnitude:+mean.magnitude.toFixed(1) };
+    S.calibrated = true;
+    const shown = ((r.offsetDeg + 180) % 360) - 180;   // -180..180 reads better than 356
+    $('calResult').textContent = `Axis set (${shown.toFixed(0)}° rotation). Ready to play.`;
+    setTimeout(() => show('chars'), 1100);
+  }
+}
+$('calSkip').onclick = () => { S.calibrated = true; show('chars'); };
+
+/* ---------- audio: beat scheduler on the audio clock ----------------------
+ * setTimeout drifts tens of ms under load. Timing offset from the beat is a
+ * primary outcome measure here, so beats are scheduled against
+ * AudioContext.currentTime and the SCHEDULED time is what gets logged — never
+ * the moment a frame happened to render.
+ * ------------------------------------------------------------------------ */
+let actx = null, audioT0 = 0, perfT0 = 0;
+function ensureAudio(){
+  if (actx) return actx;
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+  } catch(e){ actx = null; }
+  return actx;
+}
+const audioToPerf = at => perfT0 + (at - audioT0) * 1000;
+
+function tone(at, freq, dur, gain){
+  if (!actx || !cfg.sound) return;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  // soft attack and release; nothing percussive or startling
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(gain, at + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  o.connect(g); g.connect(actx.destination);
+  o.start(at); o.stop(at + dur + 0.05);
+}
+
+let beatTimer = null, nextBeatAt = 0, beatIndex = 0;
+function startBeats(){
+  const bpm = DIFF[cfg.diff-1].bpm;
+  const spb = 60 / bpm;
+  ensureAudio();
+  audioT0 = actx ? actx.currentTime : 0;
+  perfT0  = performance.now();
+  nextBeatAt = audioT0 + 0.25;
+  beatIndex = 0;
+  beatTimer = setInterval(() => {
+    if (!actx || S.paused) return;
+    while (nextBeatAt < actx.currentTime + 0.2){
+      scheduleBeat(nextBeatAt, beatIndex);
+      nextBeatAt += spb;
+      beatIndex++;
+    }
+  }, 25);
+}
+function stopBeats(){ if (beatTimer){ clearInterval(beatTimer); beatTimer = null; } }
+
+function scheduleBeat(at, idx){
+  tone(at, 196, 0.28, 0.05);                       // low, soft, unobtrusive
+  const perfAt = audioToPerf(at);
+  S.marks.push({ t:+(perfAt - S.t0).toFixed(1), type:'beat', index:idx });
+  if (idx % BEATS_PER_TRIAL === 0){
+    const delay = Math.max(0, perfAt - performance.now());
+    setTimeout(() => startTrial(perfAt, idx), delay);
+  }
+}
+
+/* ---------- trial loop ---------------------------------------------------- */
+function startTrial(scheduledPerf, beatIdx){
+  if (!S.playing || S.paused) return;
+  if (performance.now() > S.endsAt){ endRound(); return; }
+  if (S.current) closeTrial(false);          // no commit: neutral, nothing shown
+
+  const dir = Math.random() * TAU;
+  const rad = VARY_DISTANCE
+    ? RADIUS_SPREAD[0] + Math.random()*(RADIUS_SPREAD[1]-RADIUS_SPREAD[0])
+    : TARGET_RADIUS;
+  S.current = {
+    i: S.trialIdx++,
+    dir, rad,
+    tx: Math.cos(dir) * rad,
+    ty: Math.sin(dir) * rad,
+    tol: DIFF[cfg.diff-1].tol,
+    beatIndex: beatIdx,
+    promptAt: scheduledPerf,                 // the SCHEDULED beat time
+    startX: pos.x, startY: pos.y,            // where the hand already was
+    onsetAt: null,
+    enteredAt: null,      // first moment inside the target
+    entryError: null,
+    dwellStart: null,     // start of the current uninterrupted stay
+    reentries: 0,         // times they went in, drifted out, came back
+    timeInTarget: 0,
+    minDist: Infinity,    // closest approach — the accuracy measure when
+                          // there is no explicit commit
+    lastFrame: null,
+    born: performance.now(),
+  };
+  S.marks.push({ t:+(scheduledPerf - S.t0).toFixed(1), type:'prompt', trial:S.current.i,
+                 dir:+dir.toFixed(4), tol:S.current.tol });
+}
+
+/* Evaluated every frame instead of on a tap. Nothing here can produce a
+ * failure event: a trial either completes or quietly doesn't. */
+function evaluateDwell(now){
+  const c = S.current;
+  if (!c || !S.playing || S.paused) return;
+
+  const dt = c.lastFrame == null ? 0 : Math.min(now - c.lastFrame, 100);
+  c.lastFrame = now;
+
+  const d = Math.hypot(pos.x - c.tx, pos.y - c.ty);
+  if (d < c.minDist) c.minDist = d;
+
+  if (d <= c.tol){
+    c.timeInTarget += dt;
+    if (c.dwellStart === null){
+      c.dwellStart = now;
+      if (c.enteredAt === null){ c.enteredAt = now; c.entryError = d; }
+      else c.reentries++;
+    }
+    if (now - c.dwellStart >= DWELL_MS) completeTrial(now);
+  } else if (c.dwellStart !== null){
+    // drifted out — the hold simply restarts. No sound, no mark, no message.
+    c.dwellStart = null;
+  }
+}
+
+function completeTrial(now){
+  const c = S.current;
+  c.completedAt = now;
+  S.streak++;
+  S.bestStreak = Math.max(S.bestStreak, S.streak);
+  S.lastHitAt = now;
+  S.stars.push({ x:c.tx, y:c.ty, t:now });
+  S.blooms.push({ x:c.tx, y:c.ty, t:now });
+  if (actx && cfg.sound) tone(actx.currentTime + 0.005, 660, 0.5, 0.06);
+  if (S.streak === 5 || S.streak === 10 || S.streak === 15){
+    S.celebrate = now;
+    if (actx && cfg.sound){
+      [784, 988, 1175].forEach((f,i) => tone(actx.currentTime + 0.06 + i*0.13, f, 0.7, 0.05));
+    }
+  }
+  closeTrial(true);
+}
+
+function closeTrial(completed){
+  const c = S.current; if (!c) return;
+  const committed = completed;
+  S.trials.push({
+    i: c.i,
+    beat: c.beatIndex,
+    dir: +c.dir.toFixed(4),
+    radius: +c.rad.toFixed(4),
+    tol: c.tol,
+    // Fitts index of difficulty: log2(2D/W), D from where the hand started.
+    fitts_id: +(Math.log2(2*Math.hypot(c.tx-c.startX, c.ty-c.startY) / (2*c.tol))).toFixed(4),
+    target_x: +c.tx.toFixed(4), target_y: +c.ty.toFixed(4),
+    start_x: +c.startX.toFixed(4), start_y: +c.startY.toFixed(4),
+    distance: +Math.hypot(c.tx-c.startX, c.ty-c.startY).toFixed(4),
+
+    completed,                                   // held it long enough
+    entered: c.enteredAt !== null,               // got inside at all
+    // Closest approach to target centre. With no explicit commit this is the
+    // accuracy measure, and unlike a commit position it exists even on trials
+    // the child never finished.
+    error: c.minDist === Infinity ? null : +c.minDist.toFixed(4),
+    entry_error: c.entryError == null ? null : +c.entryError.toFixed(4),
+    reentries: c.reentries,
+    time_in_target_ms: +c.timeInTarget.toFixed(1),
+
+    // All timing is against the SCHEDULED beat, never the render.
+    rt_ms: c.onsetAt ? +(c.onsetAt - c.promptAt).toFixed(1) : null,
+    // Movement time now runs onset -> first entry. That is the classic Fitts
+    // MT; the old tap version added a decision and a second motor act on top
+    // of it, which inflated every estimate.
+    mt_ms: (c.enteredAt && c.onsetAt) ? +(c.enteredAt - c.onsetAt).toFixed(1) : null,
+    // Entrainment: how far off the beat they arrived.
+    beat_offset_ms: c.enteredAt ? +(c.enteredAt - c.promptAt).toFixed(1) : null,
+    hold_ms: (completed && c.enteredAt) ? +(c.completedAt - c.enteredAt).toFixed(1) : null,
+    // kept so old readers don't break; a dwell task has no discrete commit
+    committed,
+    hit: completed,
+  });
+  S.marks.push({ t:+((completed ? c.completedAt : performance.now()) - S.t0).toFixed(1),
+                 type: completed ? 'hit' : (c.enteredAt ? 'entered_not_held' : 'lapse'),
+                 trial:c.i });
+  S.current = null;
+}
+
+/* ---------- play control -------------------------------------------------- */
+let pos = { x:0, y:0 };
+function startRound(){
+  S.playing = true; S.paused = false;
+  S.t0 = performance.now();
+  S.streak = 0; S.bestStreak = 0; S.lastHitAt = 0;
+  S.trials = []; S.trialIdx = 0; S.current = null;
+  S.stars = []; S.blooms = []; S.celebrate = 0;
+  S.orientation = []; S.motion = []; S.marks = [];
+  S.endsAt = S.t0 + cfg.lengthS * 1000;
+  startBeats();
+  show('play');
+}
+function stopPlay(){ S.playing = false; stopBeats(); }
+function endRound(){
+  if (S.current) closeTrial(false);
+  stopPlay();
+  drawSummary();
+  show('summary');
+}
+$('tapBegin').onclick = () => { ensureAudio(); startRound(); };
+$('pauseBtn').onclick = e => { e.stopPropagation(); S.paused = true; show('brk'); };
+$('resume').onclick = () => { S.paused = false; show('play'); };
+$('again').onclick = () => startRound();
+$('sumDone').onclick = () => show('role');
+
+/* No tap. The child tilts, and holding the light on the star is what counts. */
+
+/* touch-drag fallback so it demos on a laptop with no sensor */
+let dragging = false;
+function stageNorm(ev){
+  const r = $('stage').getBoundingClientRect();
+  const rad = Math.min(r.width, r.height)/2 - 14;
+  return { x:(ev.clientX - (r.left+r.width/2))/rad, y:(ev.clientY - (r.top+r.height/2))/rad };
+}
+$('stage').addEventListener('pointermove', ev => {
+  if (S.receiving) return;                 // real sensor wins
+  const n = stageNorm(ev);
+  const d = deadzoneClamp(clamp(n.x,-1,1), clamp(n.y,-1,1), 0.05);
+  pos = { x:d.x, y:d.y };
+});
+window.addEventListener('keydown', e => {
+  if (S.screen !== 'play' || S.receiving) return;
+  const k = 0.07;
+  if (e.key === 'ArrowRight') pos = { x:clamp(pos.x+k,-1,1), y:pos.y };
+  if (e.key === 'ArrowLeft')  pos = { x:clamp(pos.x-k,-1,1), y:pos.y };
+  if (e.key === 'ArrowDown')  pos = { x:pos.x, y:clamp(pos.y+k,-1,1) };
+  if (e.key === 'ArrowUp')    pos = { x:pos.x, y:clamp(pos.y-k,-1,1) };
+});
+
+/* ---------- render -------------------------------------------------------- */
+const stage = $('stage'), sctx = stage.getContext('2d');
+let BG = [];
+function sizeStage(){
+  const dpr = Math.min(devicePixelRatio||1, 2.5);
+  stage.width  = Math.round(innerWidth * dpr);
+  stage.height = Math.round(innerHeight * dpr);
+  if (!BG.length){
+    for (let i=0;i<70;i++) BG.push({ x:Math.random(), y:Math.random(), r:Math.random()*1.5+0.4, a:Math.random()*0.28+0.05 });
+  }
+}
+addEventListener('resize', () => { if (S.screen==='play') sizeStage(); });
+
+function draw(){
+  requestAnimationFrame(draw);
+  if (S.screen !== 'play') return;
+  const W = stage.width, H = stage.height;
+  const cx = W/2, cy = H/2;
+  const R = Math.min(W,H)/2 - Math.min(W,H)*0.09;
+  const now = performance.now();
+
+  sctx.fillStyle = '#0c1120';
+  sctx.fillRect(0,0,W,H);
+
+  // ambient starfield — static, never animated, nothing to track
+  for (const b of BG){
+    sctx.globalAlpha = b.a;
+    sctx.fillStyle = '#cfd8f0';
+    sctx.beginPath(); sctx.arc(b.x*W, b.y*H, b.r*(W/1400)*2.2, 0, TAU); sctx.fill();
+  }
+  sctx.globalAlpha = 1;
+
+  // play boundary
+  sctx.strokeStyle = 'rgba(53,66,106,.5)'; sctx.lineWidth = Math.max(1, R*0.004);
+  sctx.beginPath(); sctx.arc(cx,cy,R,0,TAU); sctx.stroke();
+
+  // whatever this character builds, growing quietly behind play
+  drawReward(sctx, cx, cy, R, chosenChar, S.stars, now, { alpha:0.85 });
+
+  evaluateDwell(now);
+
+  // the target
+  const c = S.current;
+  if (c){
+    const tx = cx + c.tx*R, ty = cy + c.ty*R;
+    const rad = c.tol*R;
+    const appear = Math.min(1,(now - c.born)/260);
+    const ease = 1-Math.pow(1-appear,3);
+    const g = sctx.createRadialGradient(tx,ty,0,tx,ty,rad);
+    g.addColorStop(0,`rgba(182,166,242,${0.26*ease})`);
+    g.addColorStop(1,'rgba(182,166,242,0)');
+    sctx.fillStyle = g;
+    sctx.beginPath(); sctx.arc(tx,ty,rad,0,TAU); sctx.fill();
+    sctx.strokeStyle = `rgba(182,166,242,${0.42*ease})`;
+    sctx.lineWidth = Math.max(1.2, R*0.005);
+    sctx.beginPath(); sctx.arc(tx,ty,rad,0,TAU); sctx.stroke();
+    // The target is a four-point SPARKLE, not a round dot.
+    // Collected stars are round dots and the character can also be a round-ish
+    // amber shape, so a third amber circle here would make "go to this one" and
+    // "already got that one" look the same. Different silhouette, not just a
+    // different size — silhouette survives peripheral vision and low contrast.
+    const puls = 1 + Math.sin(now/620)*0.07;         // slow, calm, draws the eye
+    const sr = R*0.042*ease*puls;
+    sctx.fillStyle = `rgba(255,231,196,${0.95*ease})`;
+    sctx.beginPath();
+    sctx.moveTo(tx, ty-sr);
+    sctx.quadraticCurveTo(tx, ty, tx+sr, ty);
+    sctx.quadraticCurveTo(tx, ty, tx, ty+sr);
+    sctx.quadraticCurveTo(tx, ty, tx-sr, ty);
+    sctx.quadraticCurveTo(tx, ty, tx, ty-sr);
+    sctx.fill();
+  }
+
+  // blooms on a hit
+  S.blooms = S.blooms.filter(b => now - b.t < 900);
+  for (const b of S.blooms){
+    const p = (now - b.t)/900;
+    const rr = R*(0.03 + p*0.13);
+    sctx.strokeStyle = `rgba(143,227,214,${0.5*(1-p)})`;
+    sctx.lineWidth = Math.max(1.5, R*0.008*(1-p));
+    sctx.beginPath(); sctx.arc(cx+b.x*R, cy+b.y*R, rr, 0, TAU); sctx.stroke();
+  }
+
+  // the indicator IS the child's character
+  const px = cx + pos.x*R, py = cy + pos.y*R;
+  const halo = sctx.createRadialGradient(px,py,0,px,py,R*0.13);
+  halo.addColorStop(0, hexA(chosenChar.colour, .22));
+  halo.addColorStop(1, hexA(chosenChar.colour, 0));
+  sctx.fillStyle = halo;
+  sctx.beginPath(); sctx.arc(px,py,R*0.13,0,TAU); sctx.fill();
+  // happy for a moment after a hit; never anything else
+  const sinceHit = S.lastHitAt ? now - S.lastHitAt : 1e9;
+  const happy = sinceHit < 800 ? 1 - sinceHit/800 : 0;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const bob = reduce ? 0 : Math.sin(now/900) * R*0.008 - happy*R*0.05;
+  drawCharacter(sctx, px, py, R*0.055, chosenChar, { happy, bob });
+
+  // milestone: whatever they're building lifts for a moment, then play resumes
+  if (S.celebrate && now - S.celebrate < 1600){
+    const p = (now - S.celebrate)/1600;
+    drawReward(sctx, cx, cy, R, chosenChar, S.stars, now, { alpha:1, glow:Math.sin(p*Math.PI) });
+  } else if (S.celebrate && now - S.celebrate >= 1600) S.celebrate = 0;
+
+  // rounds-remaining cue: a quiet arc, no numbers
+  const left = Math.max(0, S.endsAt - now) / (cfg.lengthS*1000);
+  sctx.strokeStyle = 'rgba(147,160,192,.30)';
+  sctx.lineWidth = Math.max(2, R*0.010);
+  sctx.beginPath();
+  sctx.arc(cx, cy, R*1.055, -Math.PI/2, -Math.PI/2 + TAU*left);
+  sctx.stroke();
+
+  if (S.playing && !S.paused && now > S.endsAt) endRound();
+}
+requestAnimationFrame(draw);
+
+/* ---------- summary: the constellation they made -------------------------- */
+function drawSummary(){
+  const cv = $('summaryCanvas');
+  const dpr = Math.min(devicePixelRatio||1,2.5);
+  const size = Math.min(innerWidth*0.78, 420);
+  cv.width = size*dpr; cv.height = size*dpr;
+  const g = cv.getContext('2d');
+  const W = cv.width, H = cv.height, cx=W/2, cy=H/2, R=W/2-W*0.09;
+  g.fillStyle = '#0c1120'; g.fillRect(0,0,W,H);
+  for (const b of BG.slice(0,40)){
+    g.globalAlpha = b.a; g.fillStyle='#cfd8f0';
+    g.beginPath(); g.arc(b.x*W,b.y*H,b.r*(W/900)*2,0,TAU); g.fill();
+  }
+  g.globalAlpha = 1;
+  drawReward(g, cx, cy, R, chosenChar, S.stars, performance.now(), { alpha:1, final:true });
+  // every reward is a ring now, so the character sits at the centre of its own
+  drawCharacter(g, cx, cy, W*0.055, chosenChar, { happy:1 });
+  // No score. No count. Just the thing they made.
+  $('sumTitle').textContent = S.stars.length ? chosenChar.done : 'Nice work';
+}
+
+/* ---------- therapist data view ------------------------------------------ */
+function renderData(){
+  const t = S.trials.filter(x => x.entered);      // timing exists only if they got there
+  const hits = t.filter(x => x.hit);
+  const errs = t.map(x => x.error);
+  const rts  = t.map(x => x.rt_ms).filter(v => v != null);
+  const offs = t.map(x => x.beat_offset_ms).filter(v => v != null);
+  const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+  const sd = a => { if(a.length<2) return null; const m=mean(a); return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length); };
+  const f = (v,n=1,u='') => v==null ? '—' : v.toFixed(n)+u;
+
+  $('stats').innerHTML = [
+    ['trials', S.trials.length],
+    ['completed', S.trials.length ? Math.round(hits.length/S.trials.length*100)+'%' : '—'],
+    ['longest streak', S.bestStreak],
+    ['mean error', f(mean(errs),3)],
+    ['mean RT', f(mean(rts),0,' ms')],
+    ['mean MT', f(mean(t.map(x=>x.mt_ms).filter(v=>v!=null)),0,' ms')],
+    ['beat offset SD', f(sd(offs),0,' ms')],
+    ['samples', S.orientation.length],
+    ['motion', S.motion.length],
+  ].map(([k,v]) => `<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+
+  // trajectory
+  const cv = $('traj'), g = cv.getContext('2d');
+  const W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=W/2-W*0.08;
+  g.fillStyle='#111830'; g.fillRect(0,0,W,H);
+  g.strokeStyle='#26314f'; g.lineWidth=2;
+  g.beginPath(); g.arc(cx,cy,R,0,TAU); g.stroke();
+  g.beginPath(); g.moveTo(cx-R,cy); g.lineTo(cx+R,cy); g.moveTo(cx,cy-R); g.lineTo(cx,cy+R); g.stroke();
+  if (S.orientation.length > 1){
+    g.strokeStyle='rgba(143,227,214,.55)'; g.lineWidth=2; g.lineJoin='round';
+    g.beginPath();
+    S.orientation.forEach((r,i)=>{ const x=cx+r[5]*R, y=cy+r[6]*R; i===0?g.moveTo(x,y):g.lineTo(x,y); });
+    g.stroke();
+  }
+  for (const tr of S.trials){
+    g.fillStyle = 'rgba(182,166,242,.35)';
+    g.beginPath(); g.arc(cx+tr.target_x*R, cy+tr.target_y*R, R*tr.tol, 0, TAU); g.fill();
+    if (tr.end_x != null){
+      g.fillStyle = tr.hit ? '#7fd6ac' : '#93a0c0';
+      g.beginPath(); g.arc(cx+tr.end_x*R, cy+tr.end_y*R, R*0.016, 0, TAU); g.fill();
+    }
+  }
+
+  const rows = S.trials.slice(-40).map(x => `<tr>
+    <td>${x.i}</td>
+    <td class="${x.hit?'hit':''}">${x.completed ? 'held' : (x.entered ? 'in, not held' : '—')}</td>
+    <td>${x.error==null?'—':x.error.toFixed(3)}</td>
+    <td>${x.reentries}</td>
+    <td>${x.rt_ms==null?'—':Math.round(x.rt_ms)}</td>
+    <td>${x.mt_ms==null?'—':Math.round(x.mt_ms)}</td>
+    <td>${x.beat_offset_ms==null?'—':Math.round(x.beat_offset_ms)}</td>
+  </tr>`).join('');
+  $('trialTable').innerHTML =
+    `<thead><tr><th>#</th><th>outcome</th><th>closest</th><th>re-entries</th><th>RT ms</th><th>MT ms</th><th>beat off ms</th></tr></thead><tbody>${rows}</tbody>`;
+
+  $('dataNote').innerHTML =
+    `No tap: a trial completes by holding the indicator inside the target for <b>${DWELL_MS} ms</b>. ` +
+    `Reaction time runs from the <b>scheduled</b> beat to movement onset; movement time from onset to ` +
+    `<b>first entry</b>, which is the classic Fitts MT with no decision or second motor act folded in. ` +
+    `Beat offset is first entry minus scheduled beat — its SD is the synchronisation measure. ` +
+    `"Closest" is the nearest approach to target centre, so accuracy exists even on trials the child never finished. ` +
+    `Export carries ${S.orientation.length} orientation samples and ${S.motion.length} accelerometer/gyroscope samples, ` +
+    `both at the native event rate with real timestamps and a trial id per row.`;
+}
+
+/* ---------- export -------------------------------------------------------- */
+const ORIENT_COLS = ['t_ms','beta_deg','gamma_deg','tilt_x_deg','tilt_y_deg','out_x','out_y','trial'];
+const MOTION_COLS = ['t_ms','accel_g_x','accel_g_y','accel_g_z',
+                     'gyro_alpha_dps','gyro_beta_dps','gyro_gamma_dps','interval_ms','trial'];
+function buildExport(){
+  return {
+    schema:'sync.session.v1',
+    recorded_at:new Date().toISOString(),
+    config:{
+      difficulty:cfg.diff, tolerance:DIFF[cfg.diff-1].tol, bpm:DIFF[cfg.diff-1].bpm,
+      round_seconds:cfg.lengthS, sound:!!cfg.sound,
+      beats_per_trial:BEATS_PER_TRIAL, dwell_ms:DWELL_MS,
+      target_radius:TARGET_RADIUS, vary_distance:VARY_DISTANCE,
+      input: S.receiving ? 'tilt' : 'touch',
+      character: chosenChar.id,
+      range_deg:mapper.cfg.rangeDeg, dead_zone:mapper.cfg.deadZone,
+      polarity:mapper.cfg.polarity, axis_offset_deg:mapper.cfg.axisOffsetDeg,
+      filter:{ type:'one_euro', min_cutoff_hz:mapper.cfg.minCutoff, beta:mapper.cfg.filterBeta },
+      calibration_centre:S.calZero || null,
+      calibration_axis:S.calAxis || null,
+    },
+    device:{ user_agent:navigator.userAgent, screen:{w:screen.width,h:screen.height,dpr:devicePixelRatio} },
+    summary:{
+      trials:S.trials.length,
+      committed:S.trials.filter(t=>t.committed).length,
+      hits:S.trials.filter(t=>t.hit).length,
+      longest_streak:S.bestStreak,
+      orientation_samples:S.orientation.length,
+      motion_samples:S.motion.length,
+    },
+    trials:S.trials,
+    marks:S.marks,
+    orientation:{ columns:ORIENT_COLS, data:S.orientation },
+    motion:{ columns:MOTION_COLS, data:S.motion },
+  };
+}
+function download(name, text, mime){
+  const b = new Blob([text],{type:mime}), u = URL.createObjectURL(b);
+  const a = document.createElement('a'); a.href=u; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u), 2000);
+}
+const stamp = () => new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+$('expJson').onclick = () => download(`sync-session-${stamp()}.json`, JSON.stringify(buildExport()), 'application/json');
+$('expCsv').onclick = () => {
+  const e = buildExport();
+  const lines = [Object.keys(e.trials[0]||{i:0}).join(',')];
+  for (const t of e.trials) lines.push(Object.values(t).map(v=>v==null?'':v).join(','));
+  download(`sync-trials-${stamp()}.csv`, lines.join('\n'), 'text/csv');
+};
+
+/* ---------- boot ---------------------------------------------------------- */
+sizeStage();
+renderSetup();
+</script>
+</body>
+</html>
