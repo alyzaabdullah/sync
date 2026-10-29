@@ -167,6 +167,10 @@ td.hit{color:var(--ok)}
   font-size:14px;line-height:1.6;text-align:left;
 }
 .warn b{color:#ffb877}
+.warn div+div{margin-top:8px}
+.ipt{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:10px;color:var(--dim);font-size:14.5px;line-height:1.6}
+.ipt b{color:var(--ink);font-weight:600}
+.ipt .ih{font:600 11px/1 var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--indicator);margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -298,7 +302,13 @@ td.hit{color:var(--ok)}
     <div class="tblwrap"><table id="trialTable"></table></div>
     <p class="note" id="dataNote"></p>
     <div class="rowbtns" style="justify-content:flex-start;margin-top:18px">
-      <button class="primary" id="expJson">Export JSON</button>
+      <button class="primary" id="interpBtn">Interpret session</button>
+      <button class="ghost" id="pastBtn">Compare with past sessions</button>
+      <input type="file" id="pastFiles" accept=".json,application/json" multiple hidden>
+    </div>
+    <div id="interp"></div>
+    <div class="rowbtns" style="justify-content:flex-start;margin-top:18px">
+      <button class="ghost" id="expJson">Export JSON</button>
       <button class="ghost" id="expCsv">Export CSV</button>
       <button class="ghost" data-goto="role">Done</button>
     </div>
@@ -1846,6 +1856,7 @@ function renderData(){
     `"Closest" is the nearest approach to target centre, so accuracy exists even on trials the child never finished. ` +
     `Export carries ${S.orientation.length} orientation samples and ${S.motion.length} accelerometer/gyroscope samples, ` +
     `both at the native event rate with real timestamps and a trial id per row.`;
+  $('interp').innerHTML = '';
 }
 
 /* ---------- export -------------------------------------------------------- */
@@ -1897,6 +1908,193 @@ $('expCsv').onclick = () => {
   const lines = [Object.keys(e.trials[0]||{i:0}).join(',')];
   for (const t of e.trials) lines.push(Object.values(t).map(v=>v==null?'':v).join(','));
   download(`sync-trials-${stamp()}.csv`, lines.join('\n'), 'text/csv');
+};
+
+
+/* ---------- session interpretation ---------------------------------------
+ * Plain-language reading of a session for a therapist or parent.
+ * Runs entirely on this device. Nothing is sent anywhere.
+ * These measures are not yet validated against clinical tests, so the
+ * interpretation describes the session and compares a child with their own
+ * earlier sessions. It never compares them with norms or makes a diagnosis.
+ * ------------------------------------------------------------------------ */
+const INTERP_HZ = 60;
+function butter2(fc, fs){
+  const K = Math.tan(Math.PI * fc / fs), r2 = Math.SQRT2, n = 1 / (1 + r2*K + K*K);
+  return { b0:K*K*n, b1:2*K*K*n, b2:K*K*n, a1:2*(K*K-1)*n, a2:(1 - r2*K + K*K)*n };
+}
+function biquad(x, c){
+  const y = new Array(x.length); let x1=x[0], x2=x[0], y1=x[0], y2=x[0];
+  for (let i=0;i<x.length;i++){
+    const v = c.b0*x[i] + c.b1*x1 + c.b2*x2 - c.a1*y1 - c.a2*y2;
+    x2=x1; x1=x[i]; y2=y1; y1=v; y[i]=v;
+  }
+  return y;
+}
+function zeroPhase(x, c){ // forward-backward, applied twice (as in the example analysis)
+  let y = x.slice();
+  for (let k=0;k<2;k++){ y = biquad(y,c); y.reverse(); y = biquad(y,c); y.reverse(); }
+  return y;
+}
+function deriv(a, dt){
+  const n=a.length, d=new Array(n);
+  for (let i=0;i<n;i++){
+    if (i===0) d[i]=(a[1]-a[0])/dt; else if (i===n-1) d[i]=(a[n-1]-a[n-2])/dt; else d[i]=(a[i+1]-a[i-1])/(2*dt);
+  }
+  return d;
+}
+// Log dimensionless jerk of one trial's path. Closer to zero = smoother.
+function trialLDLJ(rows){
+  if (rows.length < 4) return null;
+  const u = resampleUniform(rows, 0, [5, 6], INTERP_HZ);
+  if (u.length < 20) return null;
+  const c = butter2(8, INTERP_HZ), dt = 1 / INTERP_HZ;
+  const x = zeroPhase(u.map(r=>r[1]), c), y = zeroPhase(u.map(r=>r[2]), c);
+  const jx = deriv(deriv(deriv(x,dt),dt),dt), jy = deriv(deriv(deriv(y,dt),dt),dt);
+  const T = u.length * dt, A = Math.hypot(x[x.length-1]-x[0], y[y.length-1]-y[0]);
+  if (A < 1e-4) return null;
+  let s = 0; for (let i=0;i<jx.length;i++) s += (jx[i]*jx[i] + jy[i]*jy[i]) * dt;
+  const v = -Math.log((T**5 / (A*A)) * s);
+  return Number.isFinite(v) ? v : null;
+}
+
+const _mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+const _sd = a => { if (a.length<2) return null; const m=_mean(a); return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1)); };
+
+// Works on a live session or an exported sync.session.v1 file.
+function sessionMetrics(trials, orientation, conf){
+  const n = trials.length;
+  const held = trials.filter(t => t.hit).length;
+  const entered = trials.filter(t => t.entered).length;
+  const errs = trials.map(t => t.error).filter(v => v != null);
+  const tols = trials.map(t => t.tol).filter(v => v != null);
+  const rts = trials.map(t => t.rt_ms).filter(v => v != null);
+  const mts = trials.map(t => t.mt_ms).filter(v => v != null);
+  const offs = trials.map(t => t.beat_offset_ms).filter(v => v != null);
+  const byTrial = new Map();
+  for (const r of orientation){ if (r[7] < 0) continue; if (!byTrial.has(r[7])) byTrial.set(r[7], []); byTrial.get(r[7]).push(r); }
+  const lj = []; for (const rows of byTrial.values()){ const v = trialLDLJ(rows); if (v != null) lj.push(v); }
+  return {
+    n, held, entered, samples: orientation.length,
+    heldPct: n ? held / n * 100 : null,
+    errMean: _mean(errs), errRatio: (errs.length && tols.length) ? _mean(errs) / _mean(tols) : null,
+    rt: _mean(rts), rtCV: (rts.length > 2) ? _sd(rts) / _mean(rts) : null,
+    mt: _mean(mts), mtCV: (mts.length > 2) ? _sd(mts) / _mean(mts) : null,
+    beatSD: _sd(offs), beatMs: conf && conf.bpm ? 60000 / conf.bpm : null,
+    ldlj: _mean(lj), ldljN: lj.length,
+    diff: conf ? conf.difficulty : null, input: conf ? conf.input : null,
+  };
+}
+
+let pastSessions = [];   // loaded from exported JSON files
+
+function interpretHTML(m){
+  const out = [], warn = [];
+  const r0 = v => v == null ? '—' : Math.round(v);
+  // data quality first
+  if (m.n === 0) warn.push('No trials were recorded in this session, so there is nothing to interpret yet.');
+  else if (m.n < 10) warn.push(`Only ${m.n} trials were recorded. Readings are more reliable with at least 10–15.`);
+  if (m.samples === 0) warn.push('No tilt data was recorded. This usually means the device has no tilt sensor (most laptops), motion access was not allowed, or the session used touch input. Smoothness can\'t be measured without tilt data.');
+  else if (m.ldljN < 3 && m.n >= 3) warn.push('Too few trials had enough tilt data to measure smoothness reliably.');
+  if (m.input === 'touch' && m.samples > 0) warn.push('This session used touch input, so movement measures reflect finger movement, not tilt.');
+
+  if (m.n > 0){
+    // accuracy
+    let acc = `Held the light in the target on <b>${m.held} of ${m.n}</b> trials (${r0(m.heldPct)}%).`;
+    if (m.errRatio != null){
+      acc += m.errRatio <= 1
+        ? ` On average the closest approach was inside the target, so most attempts reached it.`
+        : ` On average the closest approach stayed just outside the target, so many attempts came near without getting in.`;
+    }
+    out.push(['Accuracy', acc]);
+    // speed
+    if (m.rt != null || m.mt != null){
+      let sp = `Typical time to start moving after the beat was <b>${r0(m.rt)} ms</b>, and to reach the target <b>${r0(m.mt)} ms</b>.`;
+      const cv = Math.max(m.rtCV || 0, m.mtCV || 0);
+      if (cv > 0.5) sp += ' Timing varied a lot from one trial to the next.';
+      else if (cv > 0 && cv < 0.25) sp += ' Timing was fairly steady from trial to trial.';
+      out.push(['Speed', sp]);
+    }
+    // rhythm
+    if (m.beatSD != null){
+      let rh = `Arrival times varied by about <b>±${r0(m.beatSD)} ms</b> around the beat`;
+      rh += m.beatMs ? `, roughly ${r0(m.beatSD / m.beatMs * 100)}% of the gap between beats.` : '.';
+      rh += ' A smaller number means movements were more closely timed to the beat.';
+      out.push(['Rhythm', rh]);
+    }
+    // smoothness
+    if (m.ldlj != null){
+      out.push(['Smoothness', `Smoothness score (LDLJ) was <b>${m.ldlj.toFixed(2)}</b>, measured on ${m.ldljN} trials. On its own this number has no fixed meaning. It becomes useful when compared with this child's earlier sessions: higher (closer to zero) means smoother movement.`]);
+    }
+    // next round
+    if (m.diff != null && m.heldPct != null){
+      let nx;
+      if (m.heldPct >= 85 && m.diff < DIFF.length) nx = `Most targets were held at difficulty ${m.diff}. Difficulty ${m.diff + 1} may be a better challenge next round.`;
+      else if (m.heldPct < 50 && m.diff > 1) nx = `Fewer than half the targets were held at difficulty ${m.diff}. Difficulty ${m.diff - 1} may feel more manageable next round.`;
+      else nx = `Difficulty ${m.diff} looks like a reasonable level to keep for now.`;
+      out.push(['Next round', nx]);
+    }
+  }
+  return `
+    ${warn.length ? `<div class="warn" style="max-width:none">${warn.map(w=>`<div>${w}</div>`).join('')}</div>` : ''}
+    ${out.map(([h,t]) => `<div class="ipt"><div class="ih">${h}</div><div>${t}</div></div>`).join('')}
+    <p class="note">SYNC is a prototype. These measures have not yet been checked against standardized motor tests, so use them to compare a child with their own earlier sessions, not to diagnose or to compare children with each other.</p>`;
+}
+
+function trendHTML(cur){
+  if (!pastSessions.length) return '';
+  const all = pastSessions.map(p => ({ ...p.m, when: p.when, label: p.label }));
+  if (cur && cur.n) all.push({ ...cur, when: new Date().toISOString(), label: 'This session' });
+  all.sort((a,b) => a.when.localeCompare(b.when));
+  const f = (v, d=0) => v == null ? '—' : v.toFixed(d);
+  const rows = all.map(s => `<tr><td>${s.label}</td><td>${s.n}</td><td>${f(s.heldPct)}%</td><td>${f(s.errMean,3)}</td><td>${f(s.beatSD)}</td><td>${f(s.ldlj,2)}</td></tr>`).join('');
+  const first = all[0], last = all[all.length-1];
+  const lines = [];
+  if (all.length >= 2){
+    if (first.heldPct != null && last.heldPct != null){
+      const d = last.heldPct - first.heldPct;
+      lines.push(Math.abs(d) < 5 ? 'Targets held stayed about the same.' : `Targets held went ${d > 0 ? 'up' : 'down'} from ${f(first.heldPct)}% to ${f(last.heldPct)}%.`);
+    }
+    if (first.ldlj != null && last.ldlj != null){
+      const d = last.ldlj - first.ldlj;
+      lines.push(Math.abs(d) < 0.1 ? 'Smoothness stayed about the same.' : `Movement became ${d > 0 ? 'smoother' : 'less smooth'} (${f(first.ldlj,2)} to ${f(last.ldlj,2)}).`);
+    }
+    if (first.beatSD != null && last.beatSD != null){
+      const d = last.beatSD - first.beatSD;
+      lines.push(Math.abs(d) < 15 ? 'Timing to the beat stayed about the same.' : `Timing to the beat became ${d < 0 ? 'tighter' : 'looser'} (±${f(first.beatSD)} to ±${f(last.beatSD)} ms).`);
+    }
+    if (first.diff != null && last.diff != null && first.diff !== last.diff)
+      lines.push(`Note: difficulty changed from ${first.diff} to ${last.diff} across these sessions, which affects these comparisons.`);
+  }
+  return `<h3 style="margin-top:22px">Compared with earlier sessions</h3>
+    ${lines.length ? `<div class="ipt"><div>${lines.join(' ')}</div></div>` : ''}
+    <div class="tblwrap"><table><thead><tr><th>session</th><th>trials</th><th>held</th><th>error</th><th>beat SD ms</th><th>LDLJ</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function liveMetrics(){
+  const d = DIFF[cfg.diff - 1];
+  return sessionMetrics(S.trials, S.orientation, { difficulty: cfg.diff, bpm: d.bpm, input: S.receiving ? 'tilt' : 'touch' });
+}
+function renderInterpretation(){
+  const m = liveMetrics();
+  $('interp').innerHTML = `<h3 style="margin-top:22px">What this session shows</h3>` + interpretHTML(m) + trendHTML(m);
+  $('interp').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+$('interpBtn').onclick = renderInterpretation;
+$('pastBtn').onclick = () => $('pastFiles').click();
+$('pastFiles').onchange = async ev => {
+  const files = [...ev.target.files];
+  for (const file of files){
+    try {
+      const e = JSON.parse(await file.text());
+      if (e.schema !== 'sync.session.v1') continue;
+      const m = sessionMetrics(e.trials || [], (e.orientation && e.orientation.data) || [], e.config || {});
+      const when = e.recorded_at || file.lastModified.toString();
+      pastSessions.push({ m, when, label: new Date(when).toLocaleDateString() });
+    } catch (_) { /* skip files that aren't SYNC exports */ }
+  }
+  ev.target.value = '';
+  renderInterpretation();
 };
 
 /* ---------- boot ---------------------------------------------------------- */
