@@ -6,189 +6,240 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>SYNC</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Poppins:wght@400;500;600&display=swap">
 <style>
 /* ---------------------------------------------------------------------------
+ * LOOK
+ * Two rooms. The child's screens all sit in the same night sky the game is
+ * drawn on, so nothing jumps when play starts. The therapist's screens are
+ * daylight: a plain record sheet. body[data-mode] switches between them;
+ * show() sets it from the screen name (see DAY_SCREENS in the script).
+ *
  * FONTS
  * Architects Daughter — headings and everything the child reads (a stand-in
  *             for pencilPete, which isn't a web font: license it, put the .woff2
  *             next to this file, add an @font-face and change --hand).
  * Poppins   — all other text and buttons (the same body font BLOOM uses).
- * Plex Mono — numbers in the therapist tables, so columns line up.
- * To change the look, edit --hand / --ui below. Nothing else moves.
+ *             Table numbers use its tabular figures so columns line up.
+ *
+ * COLOUR has a job in the game, and the UI keeps to it:
+ *   starlight = what the child earns and taps · you = the light they steer ·
+ *   target = where it goes. No red anywhere on the child's side.
  * ------------------------------------------------------------------------- */
 :root{
-  --sky:#0c1120; --sky-2:#111830; --panel:#151d34; --panel-2:#1c2642;
-  --line:#26314f; --line-2:#35426a;
-  --ink:#e9edf8; --dim:#93a0c0; --dimmer:#6b779a;
-  --indicator:#8fe3d6; --target:#b6a6f2; --star:#ffd9a3;
-  --ok:#7fd6ac;
+  /* night: the child's side */
+  --night:#0c1120; --night-2:#161d35;
+  --moon:#eef1f8; --haze:#a9b2cb;
+  --starlight:#ffd9a3; --starlight-ink:#3b2706;
+  --you:#8fe3d6; --target:#b6a6f2;
+  /* day: the therapist's side */
+  --paper:#f7f8fa; --sheet:#ffffff;
+  --ink:#1b2133; --ink-2:#465066; --ink-3:#647089;
+  --rule:#e1e5ec; --rule-2:#c9d0dc;
+  --held:#1b7264;
+  --note-bg:#fdf5e4; --note-rule:#dca94a; --note-ink:#5a3d0a;
+
   --hand:"Architects Daughter","Bradley Hand","Segoe Print",cursive;
-  --child:"Architects Daughter","Bradley Hand",-apple-system,cursive;
   --ui:"Poppins",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden}
 body{
-  background:var(--sky); color:var(--ink); font:16px/1.5 var(--ui);
-  -webkit-text-size-adjust:100%; overscroll-behavior:none;
-  touch-action:manipulation;
+  background:var(--night); color:var(--moon); font:16px/1.6 var(--ui);
+  -webkit-text-size-adjust:100%; overscroll-behavior:none; touch-action:manipulation;
+  transition:background-color .4s ease;
 }
+body[data-mode=day]{background:var(--paper);color:var(--ink)}
+#sky{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none;transition:opacity .4s ease}
+body[data-mode=day] #sky{opacity:0}
+
 .screen{
   position:fixed; inset:0; display:none;
   flex-direction:column; align-items:center; justify-content:center;
-  padding:24px; text-align:center;
+  padding:max(28px,env(safe-area-inset-top)) 24px max(28px,env(safe-area-inset-bottom));
+  text-align:center;
 }
 .screen.on{display:flex}
 .screen.scroll{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch}
 
-h1{font:400 clamp(38px,7.5vw,62px)/1.1 var(--hand);margin:0 0 10px;letter-spacing:.02em}
-h2{font:400 clamp(25px,4.2vw,34px)/1.2 var(--hand);margin:0 0 8px}
-h3{font:600 12px/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:0 0 12px}
-p{margin:0 0 14px;color:var(--dim);max-width:46ch;line-height:1.6}
-p.big{font:400 clamp(19px,2.9vw,23px)/1.55 var(--hand);color:var(--ink)}
+/* ---------- type: night ---------- */
+h1{font:400 clamp(56px,10vw,96px)/1 var(--hand);margin:0 0 14px;letter-spacing:.03em}
+h2{font:400 clamp(34px,5.4vw,50px)/1.15 var(--hand);margin:0 0 14px}
+p{margin:0 0 14px;line-height:1.6}
+.lead{font:400 clamp(21px,3.1vw,28px)/1.5 var(--hand);color:var(--haze);max-width:30ch;margin:0 auto 30px}
 
+/* ---------- buttons ---------- */
 button{
-  font:600 16px/1 var(--ui); padding:15px 26px; border-radius:12px; cursor:pointer;
-  background:var(--panel-2); color:var(--ink); border:1px solid var(--line-2);
-  transition:transform .08s ease;
+  font:600 16px/1 var(--ui); padding:14px 22px; border-radius:10px; cursor:pointer;
+  background:var(--sheet); color:var(--ink); border:1px solid var(--rule-2);
+  transition:transform .08s ease, background-color .15s ease;
 }
 button:active{transform:scale(.97)}
-button.primary{background:var(--indicator);color:#06231f;border-color:var(--indicator);font-weight:700}
-button.ghost{background:transparent;border-color:var(--line)}
-button.big{font:400 24px/1 var(--hand);padding:19px 46px;border-radius:18px}
-button:disabled{opacity:.4}
-.rowbtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+button:disabled{opacity:.45}
+button:focus-visible,.charCard:focus-visible{outline:3px solid var(--you);outline-offset:3px}
+body[data-mode=day] button:focus-visible{outline-color:#3d63d8}
+button.primary{background:var(--night);color:var(--moon);border-color:var(--night)}
+button.quiet{background:none;border-color:transparent;color:var(--ink-2);padding-left:6px;padding-right:6px;text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--rule-2)}
+.rowbtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+
+/* night buttons: soft pebbles of starlight, in the hand font */
+body[data-mode=night] button{background:rgba(238,241,248,.06);color:var(--moon);border-color:rgba(238,241,248,.22)}
+body[data-mode=night] button.primary{background:var(--starlight);color:var(--starlight-ink);border-color:var(--starlight)}
+body[data-mode=night] button.quiet{background:none;border-color:transparent;color:var(--haze);text-decoration-color:rgba(169,178,203,.45)}
+button.big{font:400 clamp(24px,3.4vw,30px)/1 var(--hand);padding:20px 52px;border-radius:999px}
 
 /* ---------- splash ---------- */
-#splash .mark{
-  width:96px;height:96px;margin-bottom:26px;position:relative;
-}
-#splash .mark span{
-  position:absolute;border-radius:50%;background:var(--star);
-  animation:pulse 3.6s ease-in-out infinite;
-}
+#splash .mark{width:96px;height:96px;margin-bottom:30px;position:relative}
+#splash .mark span{position:absolute;border-radius:50%;background:var(--starlight);animation:pulse 3.6s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:1;transform:scale(1.25)}}
-@media (prefers-reduced-motion:reduce){ #splash .mark span{animation:none;opacity:.8} }
 
 /* ---------- role ---------- */
-.roles{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:20px}
-.role{
-  background:var(--panel);border:1px solid var(--line);border-radius:18px;
-  padding:30px 34px;min-width:190px;cursor:pointer;transition:border-color .15s;
-}
-.role:hover,.role:focus-visible{border-color:var(--line-2)}
-.role .t{font:400 26px/1.15 var(--hand);margin-bottom:6px}
-.role .s{font-size:13.5px;color:var(--dimmer)}
+/* Unequal on purpose: the child's way in is the big obvious one; the adult's
+   is still plainly labelled but doesn't compete for a child's tap. */
+#role .rowbtns{flex-direction:column;gap:26px;margin-top:18px}
 
-/* ---------- character select ---------- */
-.charRow{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+/* ---------- characters ---------- */
+.charRow{display:flex;gap:clamp(12px,4vw,48px);flex-wrap:wrap;justify-content:center;margin:20px 0 34px}
 .charCard{
-  background:var(--panel);border:2px solid var(--line);border-radius:22px;
-  padding:18px 14px 14px;cursor:pointer;width:150px;
-  transition:border-color .18s, transform .18s;
+  background:none;border:0;padding:6px;cursor:pointer;border-radius:24px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  opacity:.78;transition:opacity .25s ease;
 }
-.charCard:hover{transform:translateY(-3px)}
-.charCard.sel{border-color:var(--indicator)}
-.charCard canvas{display:block;width:104px;height:104px;margin:0 auto 6px}
-.charCard .nm{font:400 25px/1 var(--hand);color:var(--ink)}
+body[data-mode=night] .charCard{background:none;border:0}
+.charCard .halo{
+  width:clamp(128px,17vw,176px);aspect-ratio:1;border-radius:50%;
+  display:grid;place-items:center;transition:background-color .25s ease;
+}
+.charCard canvas{display:block;width:72%;height:72%}
+.charCard .nm{font:400 clamp(26px,3.4vw,32px)/1.1 var(--hand);color:var(--moon);padding-bottom:4px;border-bottom:3px solid transparent}
+.charCard.sel{opacity:1}
+.charCard.sel .halo{background:radial-gradient(circle, var(--c) 0%, transparent 70%)}
+.charCard.sel .nm{border-bottom-color:var(--c-solid)}
 
-/* ---------- therapist panel ---------- */
-.panel{
-  background:var(--panel);border:1px solid var(--line);border-radius:16px;
-  padding:22px 24px;width:100%;max-width:460px;text-align:left;margin-bottom:16px;
-}
-.field{margin-bottom:18px}
-.field:last-child{margin-bottom:0}
-.field label{display:block;font-size:13px;color:var(--dim);margin-bottom:8px}
-.seg{display:flex;gap:6px}
-.seg button{flex:1;padding:12px 0;font-size:15px;border-radius:9px}
-.seg button.sel{background:var(--indicator);color:#06231f;border-color:var(--indicator);font-weight:700}
-.hint{font-size:12.5px;color:var(--dimmer);line-height:1.55;margin-top:8px}
-input[type=password]{
-  width:100%;padding:14px;border-radius:10px;background:var(--sky-2);
-  border:1px solid var(--line);color:var(--ink);font:500 20px/1 var(--mono);
-  text-align:center;letter-spacing:.4em;
-}
-
-/* ---------- calibration ---------- */
-#cal .step{font:700 15px/1 var(--ui);color:var(--indicator);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
-#cal .count{font:400 74px/1 var(--hand);color:var(--ink);margin:10px 0 6px}
-#cal .bar{width:220px;height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:18px}
-#cal .bar i{display:block;height:100%;background:var(--indicator);width:0%;transition:width .1s linear}
+/* ---------- calibration (night: the hand-over moment) ---------- */
+#cal .step{font:500 16px/1 var(--ui);color:var(--haze);margin-bottom:18px}
+#cal .count{font:400 clamp(72px,12vw,110px)/1 var(--hand);color:var(--starlight);min-height:1em;margin:4px 0 10px}
+#cal .bar{width:min(320px,70vw);height:6px;background:rgba(238,241,248,.12);border-radius:3px;overflow:hidden}
+#cal .bar i{display:block;height:100%;background:var(--starlight);width:0%;transition:width .1s linear}
+#cal .rowbtns{margin-top:34px}
+#calResult{font-size:15px;color:var(--haze);max-width:46ch;margin:22px auto 0}
 
 /* ---------- play ---------- */
 #play{padding:0;justify-content:center}
 #stage{display:block;width:100%;height:100%}
 #pauseBtn{
-  position:fixed;top:14px;right:14px;padding:10px 14px;font-size:14px;
-  background:rgba(21,29,52,.7);border-color:var(--line);backdrop-filter:blur(6px);
+  position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;
+  font:400 22px/1 var(--hand);padding:12px 22px;border-radius:999px;
+  background:rgba(12,17,32,.55);border-color:rgba(238,241,248,.2);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
 }
-#roundsLeft{
-  position:fixed;top:18px;left:18px;font:600 13px/1 var(--ui);
-  color:var(--dimmer);letter-spacing:.08em;
-}
+#roundsLeft{position:fixed;top:20px;left:20px;font:400 18px/1 var(--hand);color:var(--haze)}
 
 /* ---------- break ---------- */
 #brk .breathe{
-  width:150px;height:150px;border-radius:50%;
-  background:radial-gradient(circle,rgba(143,227,214,.28),rgba(143,227,214,0) 70%);
-  animation:breathe 8s ease-in-out infinite;margin-bottom:26px;
+  width:180px;height:180px;border-radius:50%;margin-bottom:30px;
+  background:radial-gradient(circle,rgba(143,227,214,.30),rgba(143,227,214,0) 70%);
+  animation:breathe 8s ease-in-out infinite;
 }
 @keyframes breathe{0%,100%{transform:scale(.75)}50%{transform:scale(1.15)}}
-@media (prefers-reduced-motion:reduce){ #brk .breathe{animation:none;transform:scale(1)} }
 
 /* ---------- summary ---------- */
-#summaryCanvas{width:min(78vw,420px);height:min(78vw,420px);display:block;margin:8px 0 18px}
+#summaryCanvas{width:min(78vw,460px);height:min(78vw,460px);display:block;margin:0 0 26px}
+#summary .rowbtns{gap:18px}
 
-/* ---------- data view ---------- */
-.data{width:100%;max-width:760px;text-align:left;padding-bottom:40px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
-@media (max-width:620px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr))} }
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 15px}
-.stat .v{font:500 22px/1.1 var(--mono);color:var(--indicator)}
-.stat .k{font-size:11.5px;color:var(--dimmer);margin-top:5px;letter-spacing:.04em}
-#traj{width:100%;max-width:460px;aspect-ratio:1;display:block;background:var(--sky-2);border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
-table{width:100%;border-collapse:collapse;font:400 12.5px/1.4 var(--mono)}
-th{text-align:right;font:500 10.5px/1 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--dimmer);padding:0 8px 9px 0;border-bottom:1px solid var(--line-2)}
-th:first-child,td:first-child{text-align:left}
-td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);text-align:right;color:var(--dim)}
-td.hit{color:var(--ok)}
-.tblwrap{max-height:300px;overflow:auto;border-radius:10px;-webkit-overflow-scrolling:touch}
-.note{font-size:12.5px;color:var(--dimmer);line-height:1.6;margin-top:14px;max-width:64ch}
-
-.warn{
-  background:#3a2418;border:1px solid #6b4526;color:#ffd9b8;
-  border-radius:12px;padding:16px 18px;max-width:460px;margin-bottom:18px;
-  font-size:14px;line-height:1.6;text-align:left;
+@media (prefers-reduced-motion:reduce){
+  #splash .mark span{animation:none;opacity:.8}
+  #brk .breathe{animation:none;transform:scale(1)}
+  body,#sky,.charCard,.charCard .halo{transition:none}
 }
-.warn b{color:#ffb877}
-.warn div+div{margin-top:8px}
-.sesslabel{font-size:13px;color:var(--dimmer);margin-bottom:18px;max-width:none}
-.sesslabel b{color:var(--dim);font-weight:600}
-button.backlink{padding:9px 14px;font-size:14px;margin-bottom:18px}
-.ipt{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:10px;color:var(--dim);font-size:14.5px;line-height:1.6}
-.ipt b{color:var(--ink);font-weight:600}
-.ipt .ih{font:600 11px/1 var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--indicator);margin-bottom:8px}
+
+/* ===================== day: the therapist's side ===================== */
+body[data-mode=day] h2{font-size:clamp(32px,4.4vw,40px);color:var(--ink);margin-bottom:6px}
+.sheet{width:100%;max-width:720px;text-align:left;padding:28px 0 56px}
+.sheet > .intro{color:var(--ink-2);margin:0 0 6px;max-width:60ch}
+.sesslabel{font-size:15px;color:var(--ink-3);margin:0 0 8px}
+.sesslabel b{color:var(--ink);font-weight:600}
+h3{font:600 18px/1.3 var(--ui);color:var(--ink);margin:40px 0 12px}
+.note{font-size:14px;color:var(--ink-3);line-height:1.65;max-width:68ch;margin:16px 0 0}
+.note b{color:var(--ink-2);font-weight:600}
+.sheet .rowbtns{justify-content:flex-start;margin-top:32px}
+.sheet .rowbtns .push{margin-left:auto}
+.backlink{margin:0 0 18px -6px}
+
+/* a "check this first" note: data-quality warnings, environment problems */
+.check{
+  background:var(--note-bg);border-left:3px solid var(--note-rule);color:var(--note-ink);
+  border-radius:0 8px 8px 0;padding:14px 18px;margin:20px 0 6px;font-size:15px;line-height:1.6;
+}
+.check b{font-weight:600}
+.check p{margin:0}
+.check p + p{margin-top:8px}
+
+/* PIN */
+#pin .sheet{max-width:340px;text-align:center;padding:0}
+#pin label{display:block;color:var(--ink-2);margin:4px 0 14px}
+input[type=password]{
+  width:100%;padding:16px;border-radius:10px;background:var(--sheet);
+  border:1px solid var(--rule-2);color:var(--ink);font:500 26px/1 var(--ui);
+  text-align:center;letter-spacing:.5em;
+}
+input[type=password]:focus{outline:3px solid #3d63d8;outline-offset:2px;border-color:transparent}
+#pinHint{font-size:14px;color:var(--ink-3);margin:12px 0 26px}
+#pin .rowbtns{justify-content:center}
+
+/* setup: a form, one setting per row */
+.form{border-top:1px solid var(--rule);margin-top:26px}
+.field{display:grid;grid-template-columns:150px 1fr;gap:6px 24px;align-items:start;padding:20px 0;border-bottom:1px solid var(--rule)}
+.field > label{font-weight:600;color:var(--ink);padding-top:11px}
+.hint{font-size:14px;color:var(--ink-3);line-height:1.55;margin-top:10px;max-width:52ch}
+@media (max-width:600px){ .field{grid-template-columns:1fr} .field > label{padding-top:0} }
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border:1px solid var(--rule-2);border-radius:11px;background:var(--sheet)}
+.seg button{border:0;background:none;padding:11px 18px;min-width:54px;border-radius:8px;font-weight:500;color:var(--ink-2)}
+.seg button.sel{background:var(--night);color:var(--moon);font-weight:600}
+
+/* data: summary figures, laid out like a record form */
+.figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:26px 0 0;border-top:1px solid var(--rule)}
+.fig{padding:14px 14px 14px 0;border-bottom:1px solid var(--rule);margin:0}
+@media (max-width:520px){ .figs{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.fig dt{font-size:14px;color:var(--ink-3)}
+.fig dd{margin:2px 0 0;font:500 24px/1.25 var(--ui);font-variant-numeric:tabular-nums;color:var(--ink)}
+
+#traj{width:100%;max-width:460px;aspect-ratio:1;display:block;background:var(--sheet);border:1px solid var(--rule);border-radius:4px}
+.caption{font-size:14px;color:var(--ink-3);margin:10px 0 0;max-width:460px}
+.key{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:-1px;margin:0 4px 0 2px}
+
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th{text-align:right;font-weight:600;color:var(--ink-2);padding:0 12px 10px 0;border-bottom:1px solid var(--rule-2);white-space:nowrap;position:sticky;top:0;background:var(--paper)}
+th:first-child,td:first-child{text-align:left}
+td{padding:9px 12px 9px 0;border-bottom:1px solid var(--rule);text-align:right;color:var(--ink-2)}
+td.hit{color:var(--held);font-weight:500}
+.tblwrap{max-height:360px;overflow:auto;-webkit-overflow-scrolling:touch}
+
+/* analysis: one heading and one paragraph per reading, no boxes */
+.reading{padding:18px 0;border-bottom:1px solid var(--rule);max-width:64ch}
+.reading:first-of-type{border-top:1px solid var(--rule)}
+.reading h4{font:600 17px/1.3 var(--ui);color:var(--ink);margin:0 0 4px}
+.reading p{color:var(--ink-2);margin:0}
+.reading b{color:var(--ink);font-weight:600}
 </style>
 </head>
-<body>
+<body data-mode="night">
+<canvas id="sky" aria-hidden="true"></canvas>
 
 <!-- ============ SPLASH ============ -->
 <section class="screen on" id="splash">
   <div class="mark" id="mark"></div>
   <h1>SYNC</h1>
-  <p class="big">Calm, rhythm-cued motor practice.</p>
+  <p class="lead">Tilt, and follow the beat.</p>
   <div class="rowbtns"><button class="primary big" id="begin">Begin</button></div>
 </section>
 
 <!-- ============ ROLE ============ -->
 <section class="screen" id="role">
   <h2>Who's here?</h2>
-  <div class="roles">
-    <div class="role" id="roleChild" tabindex="0"><div class="t">I'm playing</div><div class="s">Start straight away</div></div>
-    <div class="role" id="roleTher" tabindex="0"><div class="t">Therapist</div><div class="s">Set up &amp; session data</div></div>
+  <div class="rowbtns">
+    <button class="primary big" id="roleChild">I'm playing</button>
+    <button class="quiet" id="roleTher">I'm the therapist</button>
   </div>
 </section>
 
@@ -196,72 +247,72 @@ button.backlink{padding:9px 14px;font-size:14px;margin-bottom:18px}
 <section class="screen" id="chars">
   <h2>Who's coming with you?</h2>
   <div class="charRow" id="charRow"></div>
-  <div class="rowbtns" style="margin-top:24px">
-    <button class="primary big" id="charGo">Let's go</button>
-  </div>
+  <div class="rowbtns"><button class="primary big" id="charGo">Let's go</button></div>
 </section>
 
 <!-- ============ PIN ============ -->
 <section class="screen" id="pin">
-  <div class="panel" style="max-width:320px">
-    <h3>Therapist access</h3>
-    <input type="password" id="pinInput" inputmode="numeric" maxlength="4" placeholder="····">
-    <div class="hint" id="pinHint">Demo PIN is <b>1234</b>.</div>
-  </div>
-  <div class="rowbtns">
-    <button class="ghost" data-goto="role">Back</button>
-    <button class="primary" id="pinGo">Enter</button>
+  <div class="sheet">
+    <h2>Therapist</h2>
+    <label for="pinInput">Enter your PIN to open setup and session data.</label>
+    <input type="password" id="pinInput" inputmode="numeric" maxlength="4" autocomplete="off">
+    <div id="pinHint">Demo PIN is <b>1234</b>.</div>
+    <div class="rowbtns">
+      <button class="quiet" data-goto="role">Back</button>
+      <button class="primary" id="pinGo">Open</button>
+    </div>
   </div>
 </section>
 
 <!-- ============ SETUP ============ -->
-<section class="screen scroll" id="setup" style="padding-top:36px">
-  <h2 style="margin-bottom:18px">Session setup</h2>
-  <div id="envWarn"></div>
-  <div class="panel">
-    <div class="field">
-      <label>Difficulty</label>
-      <div class="seg" id="diffSeg"></div>
-      <div class="hint" id="diffHint"></div>
-    </div>
-    <div class="field">
-      <label>Round length</label>
-      <div class="seg" id="lenSeg"></div>
-    </div>
-    <div class="field">
-      <label>Sound</label>
-      <div class="seg" id="sndSeg">
-        <button data-v="1">On</button><button data-v="0">Off</button>
+<section class="screen scroll" id="setup">
+  <div class="sheet">
+    <h2>Session setup</h2>
+    <p class="intro">Choose the settings for the next round. You do the sensor setup, not the child, so they never see a permission dialog.</p>
+    <div id="envWarn"></div>
+    <div class="form">
+      <div class="field">
+        <label>Difficulty</label>
+        <div><div class="seg" id="diffSeg"></div><div class="hint" id="diffHint"></div></div>
       </div>
-      <div class="hint">The beat cue and a soft chime on a hit. Nothing ever sounds for a miss.</div>
+      <div class="field">
+        <label>Round length</label>
+        <div><div class="seg" id="lenSeg"></div></div>
+      </div>
+      <div class="field">
+        <label>Sound</label>
+        <div>
+          <div class="seg" id="sndSeg"><button data-v="1">On</button><button data-v="0">Off</button></div>
+          <div class="hint">The beat cue, and a soft chime when a target is held. Nothing ever sounds for a miss.</div>
+        </div>
+      </div>
+    </div>
+    <div class="rowbtns">
+      <button class="quiet" data-goto="role">Back</button>
+      <button id="toData">Session data</button>
+      <button class="primary push" id="startSetup">Set up sensor</button>
     </div>
   </div>
-  <div class="rowbtns">
-    <button class="ghost" data-goto="role">Back</button>
-    <button class="ghost" id="toData">Session data</button>
-    <button class="primary" id="startSetup">Set up sensor</button>
-  </div>
-  <p class="note" style="max-width:460px">You do the sensor setup, not the child — so they never meet a permission dialog.</p>
 </section>
 
 <!-- ============ CALIBRATION ============ -->
 <section class="screen" id="cal">
   <div class="step" id="calStep">Step 1 of 2</div>
   <h2 id="calTitle">Hold it still</h2>
-  <p class="big" id="calText">Hold the tablet the way the child will hold it.</p>
+  <p class="lead" id="calText">Hold the tablet the way the child will hold it.</p>
   <div class="count" id="calCount"></div>
   <div class="bar"><i id="calBar"></i></div>
-  <div class="rowbtns" style="margin-top:26px">
+  <div class="rowbtns">
     <button class="primary big" id="calGo">Start</button>
-    <button class="ghost" id="calSkip">Skip</button>
+    <button class="quiet" id="calSkip">Skip</button>
   </div>
-  <p class="note" id="calResult" style="text-align:center"></p>
+  <p id="calResult"></p>
 </section>
 
 <!-- ============ READY ============ -->
 <section class="screen" id="ready">
   <h2 id="readyTitle">Ready when you are</h2>
-  <p class="big">Tilt the tablet to move the light.<br>Hold it on the star for a moment.</p>
+  <p class="lead">Tilt the tablet to move the light.<br>Hold it on the star for a moment.</p>
   <div class="rowbtns"><button class="primary big" id="tapBegin">Tap to begin</button></div>
 </section>
 
@@ -276,7 +327,7 @@ button.backlink{padding:9px 14px;font-size:14px;margin-bottom:18px}
 <section class="screen" id="brk">
   <div class="breathe"></div>
   <h2>Take your time</h2>
-  <p class="big">Come back whenever you're ready.<br>Your place is saved.</p>
+  <p class="lead">Come back whenever you're ready.<br>Your place is saved.</p>
   <div class="rowbtns"><button class="primary big" id="resume">Back to play</button></div>
 </section>
 
@@ -285,50 +336,55 @@ button.backlink{padding:9px 14px;font-size:14px;margin-bottom:18px}
   <h2 id="sumTitle">Nice work</h2>
   <canvas id="summaryCanvas"></canvas>
   <div class="rowbtns">
-    <button class="primary" id="again">Play again</button>
-    <button class="ghost" id="sumDone">Done</button>
+    <button class="primary big" id="again">Play again</button>
+    <button class="quiet" id="sumDone">Done</button>
   </div>
 </section>
 
 <!-- ============ DATA ============ -->
-<section class="screen scroll" id="data" style="padding-top:32px">
-  <div class="data">
-    <h2 style="margin-bottom:4px">Session data</h2>
-    <p style="margin-bottom:6px">Therapist and research only. None of this is ever shown to the child.</p>
+<section class="screen scroll" id="data">
+  <div class="sheet">
+    <h2>Session data</h2>
+    <p class="intro">For the therapist and research only. The child never sees any of this.</p>
     <p class="sesslabel" id="dataWho"></p>
-    <div class="stats" id="stats"></div>
+    <dl class="figs" id="stats"></dl>
     <h3>Tilt trajectory</h3>
     <canvas id="traj" width="760" height="760"></canvas>
+    <p class="caption">
+      <span class="key" style="background:rgba(139,123,214,.35)"></span>targets
+      <span class="key" style="background:var(--held)"></span>closest point, held
+      <span class="key" style="background:#98a1b3"></span>closest point, not held.
+      The line is the tilt path.
+    </p>
     <h3>Trials</h3>
     <div class="tblwrap"><table id="trialTable"></table></div>
     <p class="note" id="dataNote"></p>
-    <div class="rowbtns" style="justify-content:flex-start;margin-top:18px">
-      <button class="primary" id="toAnalysis">See analysis &rarr;</button>
-      <button class="ghost" id="expJson">Export JSON</button>
-      <button class="ghost" id="expCsv">Export CSV</button>
-      <button class="ghost" data-goto="role">Done</button>
+    <div class="rowbtns">
+      <button class="primary" id="toAnalysis">See analysis</button>
+      <button id="expJson">Export JSON</button>
+      <button id="expCsv">Export CSV</button>
+      <button class="quiet push" data-goto="role">Done</button>
     </div>
   </div>
 </section>
 
 <!-- ============ ANALYSIS ============ -->
-<section class="screen scroll" id="analysis" style="padding-top:32px">
-  <div class="data">
-    <button class="ghost backlink" id="backToRaw1">&larr; Raw data</button>
-    <h2 style="margin-bottom:4px">Session analysis</h2>
-    <p style="margin-bottom:6px">What the raw data from this round shows, in plain language. Worked out on this device; nothing is sent anywhere.</p>
+<section class="screen scroll" id="analysis">
+  <div class="sheet">
+    <button class="quiet backlink" id="backToRaw1">Back to raw data</button>
+    <h2>Session analysis</h2>
+    <p class="intro">What the raw data from this round shows, in plain language. Worked out on this device; nothing is sent anywhere.</p>
     <p class="sesslabel" id="anaWho"></p>
     <div id="interp"></div>
     <div id="trend"></div>
-    <div class="rowbtns" style="justify-content:flex-start;margin-top:18px">
-      <button class="ghost" id="backToRaw2">&larr; Back to raw data</button>
-      <button class="ghost" id="pastBtn">Compare with past sessions</button>
+    <div class="rowbtns">
+      <button id="backToRaw2">Back to raw data</button>
+      <button id="pastBtn">Compare with past sessions</button>
       <input type="file" id="pastFiles" accept=".json,application/json" multiple hidden>
-      <button class="ghost" data-goto="role">Done</button>
+      <button class="quiet push" data-goto="role">Done</button>
     </div>
   </div>
 </section>
-
 <script>
 /* =============================================================================
  * SYNC — tilt-core.js
@@ -1172,9 +1228,12 @@ const S = {
 };
 
 /* ---------- screens ------------------------------------------------------ */
+/* Therapist screens are daylight; everything the child sees is night sky. */
+const DAY_SCREENS = new Set(['pin','setup','data','analysis']);
 function show(name){
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === name));
   S.screen = name;
+  document.body.dataset.mode = DAY_SCREENS.has(name) ? 'day' : 'night';
   if (name === 'play') sizeStage();
   if (name === 'chars') renderChars();
 }
@@ -1195,20 +1254,27 @@ $('begin').onclick = () => { ensureAudio(); show('role'); };
 $('roleChild').onclick = () => S.calibrated ? show('chars') : show('setup');
 
 function renderChars(){
-  const row = $('charRow'); row.innerHTML='';
+  const row = $('charRow'); row.innerHTML=''; row.setAttribute('role','radiogroup');
   CHARACTERS.forEach(ch => {
     const card = document.createElement('div');
     card.className = 'charCard' + (ch.id===chosenChar.id ? ' sel':'');
     card.tabIndex = 0;
+    card.setAttribute('role','radio');
+    card.setAttribute('aria-checked', ch.id===chosenChar.id ? 'true':'false');
+    card.setAttribute('aria-label', ch.name);
+    card.style.setProperty('--c', hexA(ch.colour, .42));
+    card.style.setProperty('--c-solid', ch.colour);
+    const halo = document.createElement('div'); halo.className = 'halo';
     const cv = document.createElement('canvas');
     const dpr = Math.min(devicePixelRatio||1,2.5);
-    cv.width = 104*dpr; cv.height = 104*dpr;
+    cv.width = 128*dpr; cv.height = 128*dpr;
     const g = cv.getContext('2d');
     drawCharacter(g, cv.width/2, cv.height/2, cv.width*0.30, ch, { happy:1 });
+    halo.appendChild(cv);
     const nm = document.createElement('div');
     nm.className='nm'; nm.textContent = ch.name;
-    card.appendChild(cv); card.appendChild(nm);
-    const pick = () => { chosenChar = ch; renderChars(); };
+    card.appendChild(halo); card.appendChild(nm);
+    const pick = () => { chosenChar = ch; renderChars(); row.querySelector(`[aria-label="${ch.name}"]`).focus(); };
     card.onclick = pick;
     card.onkeydown = e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } };
     row.appendChild(card);
@@ -1216,12 +1282,10 @@ function renderChars(){
 }
 $('charGo').onclick = () => { $('readyTitle').textContent = `Ready, ${chosenChar.name}?`; show('ready'); };
 $('roleTher').onclick  = () => show('pin');
-$('roleChild').onkeydown = e => { if(e.key==='Enter') $('roleChild').click(); };
-$('roleTher').onkeydown  = e => { if(e.key==='Enter') $('roleTher').click(); };
 
 $('pinGo').onclick = () => {
   if ($('pinInput').value === '1234'){ $('pinInput').value=''; $('pinHint').innerHTML='Demo PIN is <b>1234</b>.'; renderSetup(); show('setup'); }
-  else { $('pinHint').textContent = 'Not that one — try again.'; }
+  else { $('pinHint').textContent = 'That PIN didn\'t match. Check it and try again.'; }
 };
 $('pinInput').onkeydown = e => { if(e.key==='Enter') $('pinGo').click(); };
 
@@ -1234,7 +1298,7 @@ function renderSetup(){
     b.onclick = () => { cfg.diff = d.d; renderSetup(); };
     seg.appendChild(b);
   });
-  $('diffHint').textContent = DIFF[cfg.diff-1].label + ' · ' + DIFF[cfg.diff-1].bpm + ' bpm';
+  $('diffHint').textContent = `${DIFF[cfg.diff-1].label}, ${DIFF[cfg.diff-1].bpm} beats a minute.`;
 
   const ls = $('lenSeg'); ls.innerHTML='';
   LENGTHS.forEach(l => {
@@ -1252,10 +1316,10 @@ function renderSetup(){
   let framed; try { framed = window.self !== window.top; } catch(e){ framed = true; }
   const secure = window.isSecureContext || ['localhost','127.0.0.1'].includes(location.hostname);
   const msgs = [];
-  if (framed) msgs.push('This page is inside an <b>iframe</b>, so iOS will not deliver motion events. Open it in a real Safari tab.');
-  if (!secure) msgs.push('Not served over <b>HTTPS</b> — iOS exposes no motion sensors over plain http.');
+  if (framed) msgs.push('This page is inside an <b>iframe</b>, so iOS will not send motion events. Open it in its own Safari tab.');
+  if (!secure) msgs.push('This page is not served over <b>HTTPS</b>, and iOS only gives motion sensors to secure pages.');
   $('envWarn').innerHTML = msgs.length
-    ? `<div class="warn">${msgs.join('<br><br>')}<br><br>Touch-drag still works, so the demo runs either way.</div>` : '';
+    ? `<div class="check">${msgs.map(m=>`<p>${m}</p>`).join('')}<p>Touch-drag still works, so the demo runs either way.</p></div>` : '';
 }
 
 $('toData').onclick = () => { renderData(); show('data'); };
@@ -1685,7 +1749,21 @@ function sizeStage(){
     for (let i=0;i<70;i++) BG.push({ x:Math.random(), y:Math.random(), r:Math.random()*1.5+0.4, a:Math.random()*0.28+0.05 });
   }
 }
-addEventListener('resize', () => { if (S.screen==='play') sizeStage(); });
+addEventListener('resize', () => { if (S.screen==='play') sizeStage(); drawSky(); });
+
+/* The same faint stars behind every child screen as behind the game, so the
+   sky the child starts in is the sky they play in. */
+function drawSky(){
+  const cv = $('sky'), dpr = Math.min(devicePixelRatio||1, 2.5);
+  cv.width = Math.round(innerWidth*dpr); cv.height = Math.round(innerHeight*dpr);
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  g.fillStyle = '#0c1120'; g.fillRect(0,0,W,H);
+  g.fillStyle = '#cfd8f0';
+  for (const b of BG){
+    g.globalAlpha = b.a; g.beginPath(); g.arc(b.x*W, b.y*H, b.r*dpr, 0, TAU); g.fill();
+  }
+  g.globalAlpha = 1;
+}
 
 function draw(){
   requestAnimationFrame(draw);
@@ -1822,36 +1900,42 @@ function renderData(){
   const f = (v,n=1,u='') => v==null ? '—' : v.toFixed(n)+u;
 
   $('stats').innerHTML = [
-    ['trials', S.trials.length],
-    ['completed', S.trials.length ? Math.round(hits.length/S.trials.length*100)+'%' : '—'],
-    ['longest streak', S.bestStreak],
-    ['mean error', f(mean(errs),3)],
-    ['mean RT', f(mean(rts),0,' ms')],
-    ['mean MT', f(mean(t.map(x=>x.mt_ms).filter(v=>v!=null)),0,' ms')],
-    ['beat offset SD', f(sd(offs),0,' ms')],
-    ['samples', S.orientation.length],
-    ['motion', S.motion.length],
-  ].map(([k,v]) => `<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+    ['Trials', S.trials.length],
+    ['Held', S.trials.length ? Math.round(hits.length/S.trials.length*100)+'%' : '—'],
+    ['Longest streak', S.bestStreak],
+    ['Mean closest', f(mean(errs),3)],
+    ['Mean RT', f(mean(rts),0,' ms')],
+    ['Mean MT', f(mean(t.map(x=>x.mt_ms).filter(v=>v!=null)),0,' ms')],
+    ['Beat offset SD', f(sd(offs),0,' ms')],
+    ['Tilt samples', S.orientation.length],
+    ['Motion samples', S.motion.length],
+  ].map(([k,v]) => `<div class="fig"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
 
   // trajectory
   const cv = $('traj'), g = cv.getContext('2d');
   const W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=W/2-W*0.08;
-  g.fillStyle='#111830'; g.fillRect(0,0,W,H);
-  g.strokeStyle='#26314f'; g.lineWidth=2;
+  g.fillStyle='#ffffff'; g.fillRect(0,0,W,H);
+  // grid every 0.1 of full deflection
+  g.strokeStyle='#eef1f5'; g.lineWidth=1.5; g.beginPath();
+  for (let k=-10;k<=10;k++){ const o=k*R/10; g.moveTo(cx+o,0); g.lineTo(cx+o,H); g.moveTo(0,cy+o); g.lineTo(W,cy+o); }
+  g.stroke();
+  g.strokeStyle='#c9d0dc'; g.lineWidth=2;
   g.beginPath(); g.arc(cx,cy,R,0,TAU); g.stroke();
   g.beginPath(); g.moveTo(cx-R,cy); g.lineTo(cx+R,cy); g.moveTo(cx,cy-R); g.lineTo(cx,cy+R); g.stroke();
+  for (const tr of S.trials){
+    g.fillStyle = 'rgba(139,123,214,.14)'; g.strokeStyle = 'rgba(139,123,214,.55)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(cx+tr.target_x*R, cy+tr.target_y*R, R*tr.tol, 0, TAU); g.fill(); g.stroke();
+  }
   if (S.orientation.length > 1){
-    g.strokeStyle='rgba(143,227,214,.55)'; g.lineWidth=2; g.lineJoin='round';
+    g.strokeStyle='rgba(27,33,51,.55)'; g.lineWidth=2; g.lineJoin='round';
     g.beginPath();
     S.orientation.forEach((r,i)=>{ const x=cx+r[5]*R, y=cy+r[6]*R; i===0?g.moveTo(x,y):g.lineTo(x,y); });
     g.stroke();
   }
   for (const tr of S.trials){
-    g.fillStyle = 'rgba(182,166,242,.35)';
-    g.beginPath(); g.arc(cx+tr.target_x*R, cy+tr.target_y*R, R*tr.tol, 0, TAU); g.fill();
     if (tr.end_x != null){
-      g.fillStyle = tr.hit ? '#7fd6ac' : '#93a0c0';
-      g.beginPath(); g.arc(cx+tr.end_x*R, cy+tr.end_y*R, R*0.016, 0, TAU); g.fill();
+      g.fillStyle = tr.hit ? '#1b7264' : '#98a1b3';
+      g.beginPath(); g.arc(cx+tr.end_x*R, cy+tr.end_y*R, R*0.02, 0, TAU); g.fill();
     }
   }
 
@@ -1865,7 +1949,7 @@ function renderData(){
     <td>${x.beat_offset_ms==null?'—':Math.round(x.beat_offset_ms)}</td>
   </tr>`).join('');
   $('trialTable').innerHTML =
-    `<thead><tr><th>#</th><th>outcome</th><th>closest</th><th>re-entries</th><th>RT ms</th><th>MT ms</th><th>beat off ms</th></tr></thead><tbody>${rows}</tbody>`;
+    `<thead><tr><th>Trial</th><th>Outcome</th><th>Closest</th><th>Re-entries</th><th>RT (ms)</th><th>MT (ms)</th><th>Beat offset (ms)</th></tr></thead><tbody>${rows}</tbody>`;
 
   $('dataNote').innerHTML =
     `No tap: a trial completes by holding the indicator inside the target for <b>${DWELL_MS} ms</b>. ` +
@@ -1886,8 +1970,8 @@ function sessionLabel(){
   const when = d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) + ', ' +
                d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
   const len = LENGTHS.find(l => l.s === r.lengthS);
-  return `<b>Round played ${when}</b> · difficulty ${r.diff} · ${len ? len.label : r.lengthS+' s'} · ` +
-         `${r.input} input · ${S.trials.length} trial${S.trials.length===1?'':'s'}`;
+  return `<b>Round played ${when}.</b> Difficulty ${r.diff}, ${len ? len.label : r.lengthS+' s'}, ` +
+         `${r.input} input, ${S.trials.length} trial${S.trials.length===1?'':'s'}.`;
 }
 
 /* ---------- export -------------------------------------------------------- */
@@ -2073,8 +2157,8 @@ function interpretHTML(m){
     }
   }
   return `
-    ${warn.length ? `<div class="warn" style="max-width:none">${warn.map(w=>`<div>${w}</div>`).join('')}</div>` : ''}
-    ${out.map(([h,t]) => `<div class="ipt"><div class="ih">${h}</div><div>${t}</div></div>`).join('')}
+    ${warn.length ? `<div class="check">${warn.map(w=>`<p>${w}</p>`).join('')}</div>` : ''}
+    ${out.map(([h,t]) => `<section class="reading"><h4>${h}</h4><p>${t}</p></section>`).join('')}
     <p class="note">SYNC is a prototype. These measures have not yet been checked against standardized motor tests, so use them to compare a child with their own earlier sessions, not to diagnose or to compare children with each other.</p>`;
 }
 
@@ -2103,9 +2187,9 @@ function trendHTML(cur){
     if (first.diff != null && last.diff != null && first.diff !== last.diff)
       lines.push(`Note: difficulty changed from ${first.diff} to ${last.diff} across these sessions, which affects these comparisons.`);
   }
-  return `<h3 style="margin-top:22px">Compared with earlier sessions</h3>
-    ${lines.length ? `<div class="ipt"><div>${lines.join(' ')}</div></div>` : ''}
-    <div class="tblwrap"><table><thead><tr><th>session</th><th>trials</th><th>held</th><th>error</th><th>beat SD ms</th><th>LDLJ</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<h3>Compared with earlier sessions</h3>
+    ${lines.length ? `<p class="reading" style="border:0;padding-top:0">${lines.join(' ')}</p>` : ''}
+    <div class="tblwrap"><table><thead><tr><th>Session</th><th>Trials</th><th>Held</th><th>Mean closest</th><th>Beat SD (ms)</th><th>LDLJ</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function liveMetrics(){
@@ -2142,6 +2226,7 @@ $('pastFiles').onchange = async ev => {
 
 /* ---------- boot ---------------------------------------------------------- */
 sizeStage();
+drawSky();
 renderSetup();
 </script>
 </body>
